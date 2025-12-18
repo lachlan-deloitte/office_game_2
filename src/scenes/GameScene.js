@@ -482,20 +482,20 @@ createRechargeStation(x, y) {
 }
 
 
-  spawnHealthPickup(x, y) {
+spawnHealthPickup(x, y) {
     const health = this.add.circle(x, y, 6, 0xff00ff);
     health.setDepth(4);
     this.physics.world.enable(health);
     health.body.setCircle(6);
     this.healthPickups.add(health);
-  }
+}
 
-  collectHealth(player, healthPickup) {
+collectHealth(player, healthPickup) {
     this.playerHealth = Math.min(this.playerHealth + 30, this.maxHealth);
     healthPickup.destroy();
-  }
+}
 
-  onRecharge(player, station) {
+onRecharge(player, station) {
   this.recharging = true;
 
   // Show the recharge bar
@@ -507,8 +507,7 @@ createRechargeStation(x, y) {
   station.rechargeBar.width = station.width * pct;
 }
 
-
-  spawnEnemy(x, y) {
+spawnEnemy(x, y) {
     const enemy = this.physics.add.sprite(x, y, 'enemy-down');
     const width = enemy.width;   // 62
     const height = enemy.height; // 90
@@ -517,9 +516,9 @@ createRechargeStation(x, y) {
     enemy.speed = 30 + (this.wave * 2);
     enemy.body.setCollideWorldBounds(true);
     this.enemies.add(enemy);
-  }
+}
 
-  spawnWave() {
+spawnWave() {
     this.spawningWave = true;
     const numEnemies = this.enemiesPerWave + Math.floor(this.wave / 2);
     
@@ -539,9 +538,9 @@ createRechargeStation(x, y) {
     this.time.delayedCall(100, () => {
       this.spawningWave = false;
     });
-  }
+}
 
-  startNextWave() {
+startNextWave() {
     if (this.spawningWave) return; // Prevent double-triggering
     
     this.wave++;
@@ -558,7 +557,7 @@ createRechargeStation(x, y) {
     this.time.delayedCall(1500, () => {
       this.spawnWave();
     });
-  }
+}
 
 fireBullet() {
   // Create a bullet sprite
@@ -588,8 +587,7 @@ fireBullet() {
   });
 }
 
-
-  bulletHitEnemy(bullet, enemy) {
+bulletHitEnemy(bullet, enemy) {
     if (bullet) bullet.destroy();
     
     if (enemy) {
@@ -616,9 +614,9 @@ fireBullet() {
       this.score += 10;
       this.scoreText.setText(`Kills: ${this.enemiesKilled}`);
     }
-  }
+}
 
-  enemyHitPlayer(player, enemy) {
+enemyHitPlayer(player, enemy) {
     if (this.isInvulnerable) return;
     
     this.playerHealth -= 15;
@@ -641,9 +639,9 @@ fireBullet() {
     if (this.playerHealth <= 0) {
       this.gameOver();
     }
-  }
+}
 
-  gameOver() {
+gameOver() {
     this.isGameOver = true;
     this.player.setVisible(false);
     this.gameOverText.setVisible(true);
@@ -658,8 +656,7 @@ fireBullet() {
         enemies[i].body.setVelocity(0, 0);
       }
     }
-  }
-}
+};
 
 startSpecialEventTimer() {
     if (this.wave < 3 || this.specialEventActive) return;
@@ -722,3 +719,6 @@ completeSpecialEvent() {
     // Schedule next random event
     this.startSpecialEventTimer();
 }
+
+
+};
