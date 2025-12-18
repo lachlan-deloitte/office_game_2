@@ -254,61 +254,61 @@ export default class GameScene extends Phaser.Scene {
     ).setScrollFactor(0).setDepth(200).setVisible(false);
   }
 
-  update(time) {
-    if (this.isGameOver) {
+update(time) {
+  if (this.isGameOver) {
       if (this.input.keyboard.addKey('R').isDown) {
         this.scene.restart();
       }
       return;
-    }
+  }
 
-    // Player movement
-    const speed = this.baseSpeed + this.speedBoost;
-    let velocityX = 0;
-    let velocityY = 0;
-    let newFacingDir = this.playerFacingDir;
+  // Player movement
+  const speed = this.baseSpeed + this.speedBoost;
+  let velocityX = 0;
+  let velocityY = 0;
+  let newFacingDir = this.playerFacingDir;
 
-    if (this.cursors.left.isDown || this.wasd.left.isDown) {
+  if (this.cursors.left.isDown || this.wasd.left.isDown) {
       velocityX = -speed;
       this.playerFacingAngle = Math.PI;
       newFacingDir = 'left';
-    }
-    if (this.cursors.right.isDown || this.wasd.right.isDown) {
+  }
+  if (this.cursors.right.isDown || this.wasd.right.isDown) {
       velocityX = speed;
       this.playerFacingAngle = 0;
       newFacingDir = 'right';
-    }
-    if (this.cursors.up.isDown || this.wasd.up.isDown) {
+  }
+  if (this.cursors.up.isDown || this.wasd.up.isDown) {
       velocityY = -speed;
       this.playerFacingAngle = -Math.PI / 2;
       newFacingDir = 'up';
-    }
-    if (this.cursors.down.isDown || this.wasd.down.isDown) {
+  }
+  if (this.cursors.down.isDown || this.wasd.down.isDown) {
       velocityY = speed;
       this.playerFacingAngle = Math.PI / 2;
       newFacingDir = 'down';
-    }
+  }
 
-    // Handle diagonal movement (prioritize last key pressed)
-    if (velocityX !== 0 && velocityY !== 0) {
+  // Handle diagonal movement (prioritize last key pressed)
+  if (velocityX !== 0 && velocityY !== 0) {
       this.playerFacingAngle = Math.atan2(velocityY, velocityX);
-    }
+  }
 
-    // Update player sprite if direction changed
-    if (newFacingDir !== this.playerFacingDir) {
+  // Update player sprite if direction changed
+  if (newFacingDir !== this.playerFacingDir) {
       this.playerFacingDir = newFacingDir;
       this.player.setTexture(`player-${newFacingDir}`);
-    }
+  }
 
-    this.player.setVelocity(velocityX, velocityY);
+  this.player.setVelocity(velocityX, velocityY);
 
-    // Recharge mechanic
-    if (this.recharging && this.rechargeKey.isDown) {
+  // Recharge mechanic
+  if (this.recharging && this.rechargeKey.isDown) {
       this.energy = Math.min(this.energy + 0.8, this.maxEnergy);
-    }
+  }
 
-    // Shooting with cooldown
-    if (
+  // Shooting with cooldown
+  if (
       Phaser.Input.Keyboard.JustDown(this.shootKey) && 
       this.energy >= 10 &&
       time > this.lastShotTime + this.shotCooldown
@@ -376,9 +376,6 @@ export default class GameScene extends Phaser.Scene {
         enemy.body.velocity.x = 0;
         enemy.body.velocity.y = 0;
       }
-
-      enemy.gfx.x = enemy.x;
-      enemy.gfx.y = enemy.y;
     }
 
     // Pulse recharge stations
@@ -410,7 +407,7 @@ export default class GameScene extends Phaser.Scene {
         station.rechargeBar.setVisible(false);
       }
     });
-  }
+}
 
 createRechargeStation(x, y) {
   const station = this.rechargeStations.create(x, y, 'rechargeStation');
