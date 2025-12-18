@@ -67,6 +67,9 @@ create() {
     this.deskCols = 4; // Starting number of desk columns
     this.deskSpacing = 200;
 
+    // Track recharge station positions to avoid desk overlap
+    this.rechargePositions = [];
+
     // Game state
     this.isGameOver = false;
     this.score = 0;
@@ -246,6 +249,31 @@ create() {
 
   }
 
+  createRechargeStation(x, y) {
+    // Track this position
+    this.rechargePositions.push({x, y});
+    
+    const station = this.rechargeStations.create(x, y, 'rechargeStation');
+
+    const width = station.width;
+    const height = station.height;
+
+    station.body.setSize(width, height);
+    station.body.setOffset(0, 0);
+    station.refreshBody();
+
+    station.setDepth(3);
+
+    station.rechargeBarBg = this.add.rectangle(x, y - height/2 - 5, width, 4, 0x222222);
+    station.rechargeBarBg.setDepth(4);
+    station.rechargeBarBg.setVisible(false);
+
+    station.rechargeBar = this.add.rectangle(x - width/2, y - height/2 - 5, 0, 4, 0x00ff88);
+    station.rechargeBar.setOrigin(0, 0.5);
+    station.rechargeBar.setDepth(5);
+    station.rechargeBar.setVisible(false);
+  }
+
   createMap() {
     // Floor (visual only, no collision)
     this.floor = this.add.rectangle(this.gameWidth/2, this.gameHeight/2, this.gameWidth, this.gameHeight, 0x2a2a2a);
@@ -257,10 +285,13 @@ create() {
     // Create border walls
     this.createBorderWalls();
     
-    // Create initial desk layout
+    // Create recharge stations FIRST
+    this.createRechargeStation(350, 300);
+    this.createRechargeStation(550, 480);
+    
+    // THEN create desks (will skip recharge positions)
     this.createDesks();
   }
-
   createBorderWalls() {
     // Clear existing walls if any
     if (this.borderWalls) {
@@ -285,7 +316,7 @@ create() {
     this.borderWalls.push(rightWall);
 }
 
-createDesks() {
+  createDesks() {
     // Create desks in a grid pattern
     const startX = 150;
     const startY = 120;
@@ -296,12 +327,25 @@ createDesks() {
             const y = startY + (row * this.deskSpacing);
             
             // Skip center area for player starting position
-            if (!(row === 1 && col === 1)) {
+            if (row === 1 && col === 1) continue;
+            
+            // Skip if there's a recharge station nearby
+            let tooClose = false;
+            for (let pos of this.rechargePositions) {
+                const dist = Phaser.Math.Distance.Between(x, y, pos.x, pos.y);
+                if (dist < 100) {
+                    tooClose = true;
+                    break;
+                }
+            }
+            
+            if (!tooClose) {
                 this.createDesk(x, y);
             }
         }
     }
-}
+  }
+
   createWall(x, y, width, height) {
     const wall = this.walls.create(x, y, null);
     wall.setDisplaySize(width, height);
@@ -1194,7 +1238,7 @@ endLunchBreak() {
   });
 }
 
-expandWorld() {
+  expandWorld() {
     // Alternate between adding columns and rows
     const expandHorizontal = (this.wave - 10) % 2 === 0;
     
@@ -1210,7 +1254,20 @@ expandWorld() {
         for (let row = 0; row < this.deskRows; row++) {
             const x = startX;
             const y = startY + (row * this.deskSpacing);
-            this.createDesk(x, y);
+            
+            // Check if recharge station nearby
+            let tooClose = false;
+            for (let pos of this.rechargePositions) {
+                const dist = Phaser.Math.Distance.Between(x, y, pos.x, pos.y);
+                if (dist < 100) {
+                    tooClose = true;
+                    break;
+                }
+            }
+            
+            if (!tooClose) {
+                this.createDesk(x, y);
+            }
         }
     } else {
         // Add a new row of desks
@@ -1224,17 +1281,42 @@ expandWorld() {
         for (let col = 0; col < this.deskCols; col++) {
             const x = startX + (col * this.deskSpacing);
             const y = startY;
-            this.createDesk(x, y);
+            
+            // Check if recharge station nearby
+            let tooClose = false;
+            for (let pos of this.rechargePositions) {
+                const dist = Phaser.Math.Distance.Between(x, y, pos.x, pos.y);
+                if (dist < 100) {
+                    tooClose = true;
+                    break;
+                }
+            }
+            
+            if (!tooClose) {
+                this.createDesk(x, y);
+            }
         }
     }
     
     // Update world bounds
     this.physics.world.setBounds(0, 0, this.gameWidth, this.gameHeight);
     
-    // Update floor
-    this.floor.destroy();
+    // Destroy old floor
+    if (this.floor) {
+        this.floor.destroy();
+    }
+    
+    // Create new floor at depth 0 (behind everything)
     this.floor = this.add.rectangle(this.gameWidth/2, this.gameHeight/2, this.gameWidth, this.gameHeight, 0x2a2a2a);
     this.floor.setDepth(0);
+    
+    // Destroy old border walls (both physics and graphics)
+    if (this.borderWalls) {
+        this.borderWalls.forEach(wall => {
+            if (wall.gfx) wall.gfx.destroy();
+            wall.destroy();
+        });
+    }
     
     // Recreate border walls
     this.createBorderWalls();
@@ -1243,6 +1325,6 @@ expandWorld() {
     const viewportX = (this.scale.width - this.gameWidth) / 2;
     const viewportY = (this.scale.height - this.gameHeight) / 2;
     this.cameras.main.setViewport(viewportX, viewportY, this.gameWidth, this.gameHeight);
-}
+  }
 
 };
