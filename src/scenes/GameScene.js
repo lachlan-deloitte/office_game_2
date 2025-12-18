@@ -22,6 +22,9 @@ export default class GameScene extends Phaser.Scene {
     // Load powerpoint logo for bullets
     this.load.image('bullet', 'assets/sprites/powerpoint.png')
 
+    // Load coffee sprite
+    this.load.image('coffee', 'assets/sprites/coffee.png')
+
     // Load recharge station 
     this.load.image('rechargeStation', 'assets/sprites/recharge_station.png');
 
@@ -37,14 +40,12 @@ export default class GameScene extends Phaser.Scene {
     
   }
 
-  create() {
+create() {
     // Play background music
-    this.bgMusic = this.sound.add('bgMusic', {
-            volume: 0.35, // 0 = silent, 1 = full volume
-            loop: true 
-        });
-
-    this.bgMusic.play();
+    this.bgMusic = this.sound.add('bgMusic', {volume: 0.35, loop: true});
+    if (!this.bgm.isPlaying) {
+        this.bgm.play();
+    }
     
     // Sound effects
     this.shootSound = this.sound.add('shootSFX', { volume: 0.7 });
@@ -483,7 +484,7 @@ createRechargeStation(x, y) {
 
 
 spawnHealthPickup(x, y) {
-    const health = this.add.circle(x, y, 6, 0xff00ff);
+    const health = this.add.sprite(x, y, 'coffee');
     health.setDepth(4);
     this.physics.world.enable(health);
     health.body.setCircle(6);
@@ -556,6 +557,8 @@ startNextWave() {
     this.spawningWave = true;
     this.time.delayedCall(1500, () => {
       this.spawnWave();
+      // Schedule special event after wave ends
+      this.startSpecialEventTimer();
     });
 }
 
