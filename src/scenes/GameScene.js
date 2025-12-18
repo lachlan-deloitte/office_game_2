@@ -1,19 +1,15 @@
-import MapLoader from "../map/MapLoader.js";
-
 export default class GameScene extends Phaser.Scene {
   constructor() {
     super("GameScene");
   }
 
   preload() {
-    // MapLoader handles map images
-    this.mapLoader = new MapLoader(this);
-    this.mapLoader.preload();
+    // No map loader needed anymore!
   }
 
   create() {
-    // Build the map
-    this.mapLoader.build();
+    // Set world bounds
+    this.physics.world.setBounds(0, 0, 800, 600);
 
     // Game state
     this.isGameOver = false;
@@ -22,8 +18,11 @@ export default class GameScene extends Phaser.Scene {
     this.enemiesKilled = 0;
     this.enemiesPerWave = 3;
 
+    // Create simple placeholder map
+    this.createMap();
+
     // Player
-    this.player = this.physics.add.sprite(64, 64, null);
+    this.player = this.physics.add.sprite(400, 300, null);
     this.player.setSize(12, 12);
     this.player.setOffset(2, 2);
     this.player.body.setCollideWorldBounds(true);
@@ -58,11 +57,10 @@ export default class GameScene extends Phaser.Scene {
       right: this.input.keyboard.addKey('D')
     };
 
-    // Collisions
-    this.physics.add.collider(this.player, this.mapLoader.walls);
-    this.physics.add.collider(this.player, this.mapLoader.furniture);
+    // Collisions with walls
+    this.physics.add.collider(this.player, this.walls);
 
-    // Recharge stations (visual)
+    // Recharge stations
     this.rechargeStations = this.physics.add.staticGroup();
     this.createRechargeStation(300, 200);
     this.createRechargeStation(500, 400);
@@ -70,28 +68,11 @@ export default class GameScene extends Phaser.Scene {
     // Health pickups
     this.healthPickups = this.physics.add.group();
 
-    // Overlaps with map stations
-    this.physics.add.overlap(
-      this.player,
-      this.mapLoader.stations,
-      this.onRecharge,
-      null,
-      this
-    );
-
-    // Overlaps with manual recharge stations
+    // Overlaps with recharge stations
     this.physics.add.overlap(
       this.player,
       this.rechargeStations,
       this.onRecharge,
-      null,
-      this
-    );
-
-    this.physics.add.overlap(
-      this.player,
-      this.mapLoader.powerStations,
-      this.onPowerUp,
       null,
       this
     );
@@ -110,8 +91,7 @@ export default class GameScene extends Phaser.Scene {
     this.spawnWave();
 
     // Enemy collision
-    this.physics.add.collider(this.enemies, this.mapLoader.walls);
-    this.physics.add.collider(this.enemies, this.mapLoader.furniture);
+    this.physics.add.collider(this.enemies, this.walls);
 
     // Enemy hits player
     this.physics.add.overlap(
@@ -157,9 +137,43 @@ export default class GameScene extends Phaser.Scene {
     // Shooting cooldown
     this.lastShotTime = 0;
     this.shotCooldown = 150;
-    
-    // Particle pool for reuse
-    this.particlePool = [];
+  }
+
+  createMap() {
+    // Floor (visual only, no collision)
+    const floor = this.add.rectangle(400, 300, 800, 600, 0x2a2a2a);
+    floor.setDepth(0);
+
+    // Walls group
+    this.walls = this.physics.add.staticGroup();
+
+    // Create border walls
+    // Top wall
+    this.createWall(400, 10, 800, 20);
+    // Bottom wall
+    this.createWall(400, 590, 800, 20);
+    // Left wall
+    this.createWall(10, 300, 20, 600);
+    // Right wall
+    this.createWall(790, 300, 20, 600);
+
+    // Interior walls/obstacles
+    this.createWall(200, 150, 100, 20);
+    this.createWall(600, 150, 100, 20);
+    this.createWall(400, 300, 20, 150);
+    this.createWall(150, 450, 150, 20);
+    this.createWall(650, 450, 150, 20);
+  }
+
+  createWall(x, y, width, height) {
+    const wall = this.walls.create(x, y, null);
+    wall.setDisplaySize(width, height);
+    wall.setSize(width, height);
+    wall.refreshBody();
+
+    // Visual representation
+    const wallGfx = this.add.rectangle(x, y, width, height, 0x555555);
+    wallGfx.setDepth(2);
   }
 
   createUI() {
@@ -276,7 +290,7 @@ export default class GameScene extends Phaser.Scene {
     const healthPct = this.playerHealth / this.maxHealth;
     this.healthBar.width = 50 * healthPct;
 
-    // Sync player graphic (once per frame)
+    // Sync player graphic
     this.playerGfx.x = this.player.x;
     this.playerGfx.y = this.player.y;
     
@@ -290,7 +304,7 @@ export default class GameScene extends Phaser.Scene {
     // Reset recharge flag
     this.recharging = false;
 
-    // Enemy AI - optimized loop
+    // Enemy AI
     const enemies = this.enemies.getChildren();
     const px = this.player.x;
     const py = this.player.y;
@@ -311,27 +325,20 @@ export default class GameScene extends Phaser.Scene {
         enemy.body.velocity.y = 0;
       }
 
-      // Sync graphics
       enemy.gfx.x = enemy.x;
       enemy.gfx.y = enemy.y;
     }
 
-    // Pulse recharge stations (throttled)
+    // Pulse recharge stations
     if (time % 100 < 50) {
       const stations = this.rechargeStations.getChildren();
       for (let i = 0; i < stations.length; i++) {
-        const station = stations[i];
-        if (station.gfx) {
-          station.gfx.alpha = 0.6;
-        }
+        if (stations[i].gfx) stations[i].gfx.alpha = 0.6;
       }
     } else {
       const stations = this.rechargeStations.getChildren();
       for (let i = 0; i < stations.length; i++) {
-        const station = stations[i];
-        if (station.gfx) {
-          station.gfx.alpha = 0.8;
-        }
+        if (stations[i].gfx) stations[i].gfx.alpha = 0.8;
       }
     }
 
@@ -352,7 +359,6 @@ export default class GameScene extends Phaser.Scene {
     
     const indicator = this.add.circle(x, y, 4, 0xffffff);
     indicator.setDepth(4);
-    station.indicator = indicator;
   }
 
   spawnHealthPickup(x, y) {
@@ -372,14 +378,6 @@ export default class GameScene extends Phaser.Scene {
     this.recharging = true;
   }
 
-  onPowerUp(player, station) {
-    this.speedBoost = 80;
-    this.maxEnergy += 20;
-    this.energy = this.maxEnergy;
-    if (station.gfx) station.gfx.destroy();
-    station.destroy();
-  }
-
   spawnEnemy(x, y) {
     const enemy = this.physics.add.sprite(x, y, null);
     enemy.setSize(12, 12);
@@ -397,10 +395,12 @@ export default class GameScene extends Phaser.Scene {
     
     for (let i = 0; i < numEnemies; i++) {
       let x, y;
+      let attempts = 0;
       do {
         x = Phaser.Math.Between(100, 700);
         y = Phaser.Math.Between(100, 500);
-      } while (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) < 150);
+        attempts++;
+      } while (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) < 150 && attempts < 10);
       
       this.spawnEnemy(x, y);
     }
