@@ -26,10 +26,10 @@ export default class GameScene extends Phaser.Scene {
     this.load.image('rechargeStation', 'assets/sprites/recharge_station.png');
 
     // Load the music
-    this.load.audio('bgMusic', 'assets/audio/metallica-ripoff.wav');
+    this.load.audio('bgMusic', 'assets/audio/metallica_ripoff.wav');
     this.load.audio('shootSFX', 'assets/audio/shoot.wav');
-    this.load.audio('hurtSFX', 'assets/audio/hurt.wav');
-    this.load.audio('rechargeSFX', 'assets/audio/recharge.wav');
+    this.load.audio('hurtSFX', 'assets/audio/hurt.mp3');
+    this.load.audio('rechargeSFX', 'assets/audio/recharge.mp3');
   }
 
   create() {
