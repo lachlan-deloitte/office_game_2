@@ -13,11 +13,11 @@ export default class MapLoader {
   preload() {
     const load = this.scene.load;
     // Map layers
-    load.image("floorMap", "assets/map/floor.png");
-    load.image("furnitureMap", "assets/map/furniture.png");
-    load.image("wallMap", "assets/map/walls.png");
-    load.image("stationMap", "assets/map/stations.png");
-    load.image("station2Map", "assets/map/stations2.png");
+    load.image("floorMap", "assets/sprites/map/floor.png");
+    load.image("furnitureMap", "assets/sprites/map/furniture.png");
+    load.image("wallMap", "assets/sprites/map/walls.png");
+    load.image("stationMap", "assets/sprites/map/stations.png");
+    load.image("station2Map", "assets/sprites/map/stations2.png");
   }
 
   build() {
