@@ -60,6 +60,13 @@ create() {
     // Set world bounds
     this.physics.world.setBounds(0, 0, 800, 600);
 
+    // Track game dimensions for expansion
+    this.gameWidth = 800;
+    this.gameHeight = 600;
+    this.deskRows = 3; // Starting number of desk rows
+    this.deskCols = 4; // Starting number of desk columns
+    this.deskSpacing = 200;
+
     // Game state
     this.isGameOver = false;
     this.score = 0;
@@ -241,35 +248,60 @@ create() {
 
   createMap() {
     // Floor (visual only, no collision)
-    const floor = this.add.rectangle(400, 300, 800, 600, 0x2a2a2a);
-    floor.setDepth(0);
+    this.floor = this.add.rectangle(this.gameWidth/2, this.gameHeight/2, this.gameWidth, this.gameHeight, 0x2a2a2a);
+    this.floor.setDepth(0);
 
     // Walls group
     this.walls = this.physics.add.staticGroup();
 
     // Create border walls
-    // Top wall
-    this.createWall(400, 10, 800, 20);
-    // Bottom wall
-    this.createWall(400, 590, 800, 20);
-    // Left wall
-    this.createWall(10, 300, 20, 600);
-    // Right wall
-    this.createWall(790, 300, 20, 600);
-
-    // Interior desks/obstacles using sprite
-    this.createDesk(150, 120);
-    this.createDesk(350, 120);
-    this.createDesk(550, 120);
-    this.createDesk(750, 120);
-    this.createDesk(150, 300);
-    this.createDesk(550, 300);
-    this.createDesk(750, 300);
-    this.createDesk(150, 480);
-    this.createDesk(350, 480);
-    this.createDesk(750, 480);
+    this.createBorderWalls();
+    
+    // Create initial desk layout
+    this.createDesks();
   }
 
+  createBorderWalls() {
+    // Clear existing walls if any
+    if (this.borderWalls) {
+        this.borderWalls.forEach(wall => wall.destroy());
+    }
+    this.borderWalls = [];
+
+    // Top wall
+    const topWall = this.createWall(this.gameWidth/2, 10, this.gameWidth, 20);
+    this.borderWalls.push(topWall);
+    
+    // Bottom wall
+    const bottomWall = this.createWall(this.gameWidth/2, this.gameHeight - 10, this.gameWidth, 20);
+    this.borderWalls.push(bottomWall);
+    
+    // Left wall
+    const leftWall = this.createWall(10, this.gameHeight/2, 20, this.gameHeight);
+    this.borderWalls.push(leftWall);
+    
+    // Right wall
+    const rightWall = this.createWall(this.gameWidth - 10, this.gameHeight/2, 20, this.gameHeight);
+    this.borderWalls.push(rightWall);
+}
+
+createDesks() {
+    // Create desks in a grid pattern
+    const startX = 150;
+    const startY = 120;
+    
+    for (let row = 0; row < this.deskRows; row++) {
+        for (let col = 0; col < this.deskCols; col++) {
+            const x = startX + (col * this.deskSpacing);
+            const y = startY + (row * this.deskSpacing);
+            
+            // Skip center area for player starting position
+            if (!(row === 1 && col === 1)) {
+                this.createDesk(x, y);
+            }
+        }
+    }
+}
   createWall(x, y, width, height) {
     const wall = this.walls.create(x, y, null);
     wall.setDisplaySize(width, height);
@@ -279,7 +311,12 @@ create() {
     // Visual representation
     const wallGfx = this.add.rectangle(x, y, width, height, 0x555555);
     wallGfx.setDepth(2);
-  }
+    
+    // Store reference to visual for cleanup
+    wall.gfx = wallGfx;
+    
+    return wall;
+}
 
   createDesk(x, y) {
       const desk = this.walls.create(x, y, 'desk');
@@ -753,29 +790,34 @@ createRechargeStation(x, y) {
   }
 
   startNextWave() {
-      if (this.spawningWave) return;
-      
-      this.wave++;
-      this.waveText.setText(`${this.wave}`);
-      
-      // Check if it's time for lunch break (every 10 waves starting at wave 10)
-      if (this.wave >= 5 && this.wave % 5 === 0) {
-        this.startLunchBreak();
-        return;
-      }
-      
-      if (Math.random() < 0.4) {
-        const x = Phaser.Math.Between(150, 650);
-        const y = Phaser.Math.Between(150, 450);
-        this.spawnHealthPickup(x, y);
-      }
-      
-      this.spawningWave = true;
-      this.time.delayedCall(1500, () => {
-        this.spawnWave();
-        this.startSpecialEventTimer();
-      });
-  }
+    if (this.spawningWave) return;
+    
+    this.wave++;
+    this.waveText.setText(`${this.wave}`);
+    
+    // Expand world after wave 10
+    if (this.wave > 10) {
+        this.expandWorld();
+    }
+    
+    // Check if it's time for lunch break (every 5 waves starting at wave 5)
+    if (this.wave >= 5 && this.wave % 5 === 0) {
+      this.startLunchBreak();
+      return;
+    }
+    
+    if (Math.random() < 0.4) {
+      const x = Phaser.Math.Between(150, this.gameWidth - 150);
+      const y = Phaser.Math.Between(150, this.gameHeight - 150);
+      this.spawnHealthPickup(x, y);
+    }
+    
+    this.spawningWave = true;
+    this.time.delayedCall(1500, () => {
+      this.spawnWave();
+      this.startSpecialEventTimer();
+    });
+}
 
   fireBullet() {
     // Create a bullet sprite
@@ -1078,7 +1120,7 @@ spawnFlyingEnemy() {
   const side = Phaser.Math.Between(0, 3);
   let x, y, vx, vy;
   
-  const speed = 250 + (this.wave * 5);
+  const speed = 500 + (this.wave * 5);
   
   switch(side) {
     case 0: // Top
@@ -1107,7 +1149,7 @@ spawnFlyingEnemy() {
       break;
   }
   
-  // Create flying enemy (using coffee sprite as placeholder)
+  // Create flying enemy
   const flyingEnemy = this.physics.add.sprite(x, y, 'slop_salad');
   flyingEnemy.setTint(0xff9500);
   flyingEnemy.setDepth(50);
@@ -1150,6 +1192,57 @@ endLunchBreak() {
     this.spawnWave();
     this.startSpecialEventTimer();
   });
+}
+
+expandWorld() {
+    // Alternate between adding columns and rows
+    const expandHorizontal = (this.wave - 10) % 2 === 0;
+    
+    if (expandHorizontal) {
+        // Add a new column of desks
+        this.deskCols++;
+        this.gameWidth += this.deskSpacing;
+        
+        const newCol = this.deskCols - 1;
+        const startX = 150 + (newCol * this.deskSpacing);
+        const startY = 120;
+        
+        for (let row = 0; row < this.deskRows; row++) {
+            const x = startX;
+            const y = startY + (row * this.deskSpacing);
+            this.createDesk(x, y);
+        }
+    } else {
+        // Add a new row of desks
+        this.deskRows++;
+        this.gameHeight += this.deskSpacing;
+        
+        const newRow = this.deskRows - 1;
+        const startX = 150;
+        const startY = 120 + (newRow * this.deskSpacing);
+        
+        for (let col = 0; col < this.deskCols; col++) {
+            const x = startX + (col * this.deskSpacing);
+            const y = startY;
+            this.createDesk(x, y);
+        }
+    }
+    
+    // Update world bounds
+    this.physics.world.setBounds(0, 0, this.gameWidth, this.gameHeight);
+    
+    // Update floor
+    this.floor.destroy();
+    this.floor = this.add.rectangle(this.gameWidth/2, this.gameHeight/2, this.gameWidth, this.gameHeight, 0x2a2a2a);
+    this.floor.setDepth(0);
+    
+    // Recreate border walls
+    this.createBorderWalls();
+    
+    // Update camera viewport (keep centered)
+    const viewportX = (this.scale.width - this.gameWidth) / 2;
+    const viewportY = (this.scale.height - this.gameHeight) / 2;
+    this.cameras.main.setViewport(viewportX, viewportY, this.gameWidth, this.gameHeight);
 }
 
 };
