@@ -42,8 +42,13 @@ export default class GameScene extends Phaser.Scene {
 
     // Player
     this.player = this.physics.add.sprite(400, 300, 'player-down');
-    this.player.setSize(62, 90);
-    this.player.setOffset(-31, -45);
+    // Suppose the PNG is 62x90
+    const spriteWidth = this.player.width;   // 62
+    const spriteHeight = this.player.height; // 90
+
+    // Set physics body to match sprite exactly
+    this.player.body.setSize(spriteWidth, spriteHeight);
+    this.player.body.setOffset(0, 0);
     this.player.body.setCollideWorldBounds(true);
     this.playerHealth = 100;
     this.maxHealth = 100;
@@ -72,8 +77,8 @@ export default class GameScene extends Phaser.Scene {
 
     // Recharge stations
     this.rechargeStations = this.physics.add.staticGroup();
-    this.createRechargeStation(300, 200);
-    this.createRechargeStation(500, 400);
+    this.createRechargeStation(350, 300);
+    this.createRechargeStation(550, 480);
 
     // Health pickups
     this.healthPickups = this.physics.add.group();
@@ -171,11 +176,16 @@ export default class GameScene extends Phaser.Scene {
     this.createWall(790, 300, 20, 600);
 
     // Interior desks/obstacles using sprite
-    this.createDesk(200, 150);
-    this.createDesk(600, 150);
-    this.createDesk(400, 300);
-    this.createDesk(150, 450);
-    this.createDesk(650, 450);
+    this.createDesk(150, 120);
+    this.createDesk(350, 120);
+    this.createDesk(550, 120);
+    this.createDesk(750, 120);
+    this.createDesk(150, 300);
+    this.createDesk(550, 300);
+    this.createDesk(750, 300);
+    this.createDesk(150, 480);
+    this.createDesk(350, 480);
+    this.createDesk(750, 480);
   }
 
   createWall(x, y, width, height) {
@@ -190,11 +200,13 @@ export default class GameScene extends Phaser.Scene {
   }
 
   createDesk(x, y) {
-    const desk = this.walls.create(x, y, 'desk');
-    // Set the physics body size to match the PNG
-    desk.setSize(113, 68);         // Width x Height of your desk sprite
-    desk.setOffset(-113 / 2, -68 / 2); // Center the physics body on the sprite
-    desk.refreshBody();             // Important for static bodies
+      const desk = this.walls.create(x, y, 'desk');
+      // Desk sprite size
+      const width = desk.width;  
+      const height = desk.height;
+      desk.body.setSize(width, height);
+      desk.body.setOffset(0, 0); // centered
+      desk.refreshBody();
   }
 
   createUI() {
@@ -386,24 +398,42 @@ export default class GameScene extends Phaser.Scene {
     if (this.enemies.countActive(true) === 0 && !this.isGameOver && !this.spawningWave) {
       this.startNextWave();
     }
+
+    // Update recharge bar progress
+    this.rechargeStations.getChildren().forEach(station => {
+      if (this.recharging && Phaser.Geom.Intersects.RectangleToRectangle(this.player.getBounds(), station.getBounds())) {
+        const pct = this.energy / this.maxEnergy;
+        station.rechargeBar.width = station.width * pct;
+      } else {
+        // Hide bar if not recharging
+        station.rechargeBarBg.setVisible(false);
+        station.rechargeBar.setVisible(false);
+      }
+    });
   }
 
 createRechargeStation(x, y) {
-  // Create a static physics body for the station
   const station = this.rechargeStations.create(x, y, 'rechargeStation');
-  
-  // Set the body size to match your sprite (optional, e.g., 16x16)
-  // You can adjust to the actual size of your sprite
-  station.setSize(112, 72);
-  station.setOffset(-56, -36); // centers body if origin is 0.5
+
+  const width = station.width;   // e.g., 112
+  const height = station.height; // e.g., 72
+
+  station.body.setSize(width, height);
+  station.body.setOffset(0, 0); // centered
   station.refreshBody();
 
-  // Optional: add visual sprite (already added via the physics group)
   station.setDepth(3);
 
   // Optional: add indicator for interactivity (like glowing circle)
-  // const indicator = this.add.circle(x, y, 4, 0xffffff);
-  // indicator.setDepth(4);
+  // Create a progress bar above the station (hidden by default)
+  station.rechargeBarBg = this.add.rectangle(x, y - height/2 - 5, width, 4, 0x222222);
+  station.rechargeBarBg.setDepth(4);
+  station.rechargeBarBg.setVisible(false);
+
+  station.rechargeBar = this.add.rectangle(x - width/2, y - height/2 - 5, 0, 4, 0x00ff88);
+  station.rechargeBar.setOrigin(0, 0.5);
+  station.rechargeBar.setDepth(5);
+  station.rechargeBar.setVisible(false);
 }
 
 
@@ -420,21 +450,27 @@ createRechargeStation(x, y) {
     healthPickup.destroy();
   }
 
-  onRecharge() {
-    this.recharging = true;
-  }
+  onRecharge(player, station) {
+  this.recharging = true;
+
+  // Show the recharge bar
+  station.rechargeBarBg.setVisible(true);
+  station.rechargeBar.setVisible(true);
+
+  // Update bar width based on energy
+  const pct = this.energy / this.maxEnergy;
+  station.rechargeBar.width = station.width * pct;
+}
+
 
   spawnEnemy(x, y) {
     const enemy = this.physics.add.sprite(x, y, 'enemy-down');
-    enemy.setSize(62, 90);
+    const width = enemy.width;   // 62
+    const height = enemy.height; // 90
+    enemy.body.setSize(width, height);
+    enemy.body.setOffset(0, 0); // centered
     enemy.speed = 30 + (this.wave * 2);
     enemy.body.setCollideWorldBounds(true);
-
-    // Visual overlay (optional - you can remove this if sprites are enough)
-    enemy.gfx = this.add.rectangle(x, y, 12, 12, 0xff5555);
-    enemy.gfx.setDepth(5);
-    enemy.gfx.setAlpha(0); // Make invisible, only using sprite
-
     this.enemies.add(enemy);
   }
 
