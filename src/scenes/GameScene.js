@@ -290,7 +290,7 @@ create() {
     this.gameOverText = this.add.text(
       this.cameras.main.width / 4,
       this.cameras.main.height / 4,
-      'GAME OVER\n\nPress R to Restart',
+      'REDUNDANT!\n\nPress R to Restart\n',
       {
         fontSize: '16px',
         fill: '#ff0000',
@@ -685,10 +685,29 @@ createRechargeStation(x, y) {
   gameOver() {
       this.isGameOver = true;
       this.player.setVisible(false);
+      this.gameOverMessage = ["With your free and large payout time you travelled to France and hiked in the Pyrenees, it was lovely.",
+                            "After being made redundant you went back to tafe, took a baking apprenticeship and opened the bakery you dreamed of as a child.",
+                            "Now that you have some spare time, you spent it with your loving family.",
+                            "Because you don't need to be at work, you can go to the beach.",
+                            "Now you can sleep in.",
+                            "After being made redundant, you took the paints from the back of the cupboard and painted a beautiful picture.",
+                            "After being made redundant, you sat outside an immersed yourself in the beauty of nature.",
+                            "Now that you're no longer a consultant, you've found that you're able to make meaningful human connections.",
+                            "Without a job, now you can have 12 beers for lunch.",
+                            "Thanks to your payout, you can afford that nice pair of shoes you wanted."]
+      const randomMessage = Phaser.Utils.Array.GetRandom(this.gameOverTexts);
       this.gameOverText.setVisible(true);
       this.gameOverText.setText(
-        `GAME OVER\n\nWave: ${this.wave}\nKills: ${this.enemiesKilled}\nScore: ${this.score}\n\nPress R to Restart`
-      );
+          `REDUNDANT
+
+        "${randomMessage}"
+
+        Wave: ${this.wave}
+        Kills: ${this.enemiesKilled}
+        Score: ${this.score}
+
+        Press R to Restart`
+        );
       
       // Freeze enemies
       const enemies = this.enemies.getChildren();
@@ -771,7 +790,6 @@ completeSpecialEvent() {
     // Reset flags
     this.specialEventActive = false;
     this.specialEventTimer = null;
-}
-
+  }
 
 };
