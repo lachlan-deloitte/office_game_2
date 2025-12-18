@@ -6,21 +6,37 @@ export default class GameScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image("player", "assets/sprites/player.png");
-    this.load.image("station", "assets/sprites/station.png");
-    this.load.image("projectile", "assets/sprites/slide.png");
-
+    // MapLoader handles map images
     this.mapLoader = new MapLoader(this);
     this.mapLoader.preload();
-    this.load.image("player", "assets/sprites/player.png");
   }
 
   create() {
+    // Build the map
     this.mapLoader.build();
 
     // Player
-    this.player = this.physics.add.sprite(64, 64, "player");
-    this.player.setCollideWorldBounds(true);
+    this.player = this.physics.add.sprite(64, 64, null);
+    this.player.setSize(12, 12);
+    this.player.setOffset(2, 2);
+    this.player.body.setCollideWorldBounds(true);
+
+    // Draw player placeholder
+    this.playerGfx = this.add.rectangle(
+      this.player.x,
+      this.player.y,
+      12,
+      12,
+      0x4aa3ff
+    );
+    this.playerGfx.setDepth(10);
+
+    // Camera
+    this.cameras.main.startFollow(this.player);
+    this.cameras.main.setZoom(2);
+
+    // Movement input
+    this.cursors = this.input.keyboard.createCursorKeys();
 
     // Collisions
     this.physics.add.collider(this.player, this.mapLoader.walls);
@@ -43,49 +59,51 @@ export default class GameScene extends Phaser.Scene {
       this
     );
 
-    // Camera
-    this.cameras.main.startFollow(this.player);
-    this.cameras.main.setZoom(2);
+    // Enemies
+    this.enemies = this.physics.add.group();
+    this.spawnEnemy(200, 200);
+    this.spawnEnemy(400, 300);
+    this.spawnEnemy(600, 150);
 
-    // Camera
-    this.cameras.main.startFollow(this.player);
-    this.cameras.main.setZoom(2);
+    // Enemy collision
+    this.physics.add.collider(this.enemies, this.mapLoader.walls);
+    this.physics.add.collider(this.enemies, this.mapLoader.furniture);
 
-    // Recharge station
-    this.station = this.physics.add.staticSprite(500, 300, "station");
+    // Bullets
+    this.bullets = this.physics.add.group();
+    this.shootKey = this.input.keyboard.addKey(
+      Phaser.Input.Keyboard.KeyCodes.SPACE
+    );
 
-    // Weapon stats
+    // Bullet → Enemy collision (added once!)
+    this.physics.add.overlap(
+      this.bullets,
+      this.enemies,
+      (bullet, enemy) => {
+        bullet.destroy();
+        enemy.gfx.destroy();
+        enemy.destroy();
+      }
+    );
+
+    // Energy system
     this.maxEnergy = 100;
-    this.energy = this.maxEnergy;
-    this.energyCost = 10;
-    this.fireCooldown = 300;
-    this.lastFired = 0;
-
-    // Projectiles
-    this.projectiles = this.physics.add.group({
-      defaultKey: "projectile",
-      maxSize: 20
-    });
-
-    // Input
-    this.cursors = this.input.keyboard.createCursorKeys();
-    this.fireKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.energy = 100;
+    this.recharging = false;
     this.rechargeKey = this.input.keyboard.addKey("E");
 
-    // Energy bar UI
-    this.energyBarBg = this.add.rectangle(20, 20, 104, 10, 0x000000).setScrollFactor(0);
-    this.energyBar = this.add.rectangle(22, 20, 100, 6, 0x00ff00).setOrigin(0, 0.5).setScrollFactor(0);
+    // Simple UI
+    this.energyBarBg = this.add.rectangle(20, 20, 52, 6, 0x222222).setScrollFactor(0);
+    this.energyBar = this.add.rectangle(20, 20, 50, 4, 0x00ff88).setScrollFactor(0);
 
-    // Overlap for recharge
-    this.physics.add.overlap(this.player, this.station, () => {
-      if (this.rechargeKey.isDown) {
-        this.energy = Math.min(this.energy + 0.7, this.maxEnergy);
-      }
-    });
+    // Player speed
+    this.baseSpeed = 120;
+    this.speedBoost = 0;
   }
 
-  update(time) {
-    const speed = 120;
+  update() {
+    // Player movement
+    const speed = this.baseSpeed + this.speedBoost;
     this.player.setVelocity(0);
 
     if (this.cursors.left.isDown) this.player.setVelocityX(-speed);
@@ -93,41 +111,93 @@ export default class GameScene extends Phaser.Scene {
     if (this.cursors.up.isDown) this.player.setVelocityY(-speed);
     if (this.cursors.down.isDown) this.player.setVelocityY(speed);
 
-    // Fire weapon
-    if (
-      this.fireKey.isDown &&
-      time > this.lastFired &&
-      this.energy >= this.energyCost
-    ) {
-      this.fireProjectile();
-      this.energy -= this.energyCost;
-      this.lastFired = time + this.fireCooldown;
+    // Recharge mechanic
+    if (this.recharging && this.rechargeKey.isDown) {
+      this.energy = Math.min(this.energy + 0.5, this.maxEnergy);
     }
 
-    // Update energy bar
-    this.energyBar.width = (this.energy / this.maxEnergy) * 100;
-    this.energyBar.fillColor = this.energy < 30 ? 0xff0000 : 0x00ff00;
+    // Shooting
+    if (Phaser.Input.Keyboard.JustDown(this.shootKey) && this.energy >= 10) {
+      this.fireBullet();
+      this.energy -= 10;
+    }
+
+    // Update energy UI
+    const pct = this.energy / this.maxEnergy;
+    this.energyBar.width = 50 * pct;
+
+    // Sync player graphic
+    this.playerGfx.setPosition(this.player.x, this.player.y);
+
+    // Reset recharge flag each frame (overlap sets it)
+    this.recharging = false;
+
+    // Enemy AI (follow player)
+    this.enemies.children.iterate(enemy => {
+      if (!enemy) return;
+
+      const dx = this.player.x - enemy.x;
+      const dy = this.player.y - enemy.y;
+      const dist = Math.hypot(dx, dy);
+
+      if (dist > 4) {
+        enemy.body.setVelocity(
+          (dx / dist) * enemy.speed,
+          (dy / dist) * enemy.speed
+        );
+      } else {
+        enemy.body.setVelocity(0);
+      }
+
+      enemy.gfx.setPosition(enemy.x, enemy.y);
+    });
   }
 
-  fireProjectile() {
-    const projectile = this.projectiles.get(
+  onRecharge() {
+    this.recharging = true;
+  }
+
+  onPowerUp(player, station) {
+    this.speedBoost = 80; // Increase speed
+    station.destroy();
+  }
+
+  spawnEnemy(x, y) {
+    const enemy = this.physics.add.sprite(x, y, null);
+    enemy.setSize(12, 12);
+    enemy.speed = 30;
+
+    // Visual
+    enemy.gfx = this.add.rectangle(x, y, 12, 12, 0xff5555);
+
+    this.enemies.add(enemy);
+  }
+
+  fireBullet() {
+    const bullet = this.physics.add.circle(
       this.player.x,
-      this.player.y
+      this.player.y,
+      2,
+      0xffffff
     );
 
-    if (!projectile) return;
+    const pointer = this.input.activePointer;
+    const angle = Phaser.Math.Angle.Between(
+      this.player.x,
+      this.player.y,
+      pointer.worldX,
+      pointer.worldY
+    );
 
-    projectile.setActive(true);
-    projectile.setVisible(true);
+    const speed = 300;
+    bullet.body.setVelocity(
+      Math.cos(angle) * speed,
+      Math.sin(angle) * speed
+    );
 
-    projectile.body.reset(this.player.x, this.player.y);
-    projectile.setVelocityY(-300);
+    this.bullets.add(bullet);
 
-    this.cameras.main.shake(60, 0.005);
-
-    this.time.delayedCall(1000, () => {
-      projectile.setActive(false);
-      projectile.setVisible(false);
-    });
+    // Auto-destroy
+    this.time.delayedCall(800, () => bullet.destroy());
   }
 }
