@@ -12,20 +12,12 @@ export default class MapLoader {
 
   preload() {
     const load = this.scene.load;
-
     // Map layers
-    load.image("floorMap", "assets/maps/floor.png");
-    load.image("furnitureMap", "assets/maps/furniture.png");
-    load.image("wallMap", "assets/maps/walls.png");
-    load.image("stationMap", "assets/maps/stations.png");
-    load.image("station2Map", "assets/maps/stations2.png");
-
-    // Tile sprites
-    load.image("floorTile", "assets/tiles/floor.png");
-    load.image("furnitureTile", "assets/tiles/furniture.png");
-    load.image("wallTile", "assets/tiles/wall.png");
-    load.image("stationTile", "assets/sprites/station.png");
-    load.image("station2Tile", "assets/sprites/station2.png");
+    load.image("floorMap", "assets/map/floor.png");
+    load.image("furnitureMap", "assets/map/furniture.png");
+    load.image("wallMap", "assets/map/walls.png");
+    load.image("stationMap", "assets/map/stations.png");
+    load.image("station2Map", "assets/map/stations2.png");
   }
 
   build() {
