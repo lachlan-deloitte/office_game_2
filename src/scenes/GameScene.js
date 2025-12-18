@@ -413,7 +413,8 @@ create() {
         fill: '#ff4444',
         align: 'center',
         backgroundColor: '#000000',
-        padding: { x: 30, y: 20 }
+        padding: { x: 30, y: 20 },
+        wordWrap: { width: 700 }
       }
     ).setScrollFactor(0).setDepth(200).setVisible(false).setOrigin(0.5);
 
