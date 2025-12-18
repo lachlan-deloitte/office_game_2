@@ -15,11 +15,21 @@ export default class GameScene extends Phaser.Scene {
     // Build the map
     this.mapLoader.build();
 
+    // Game state
+    this.isGameOver = false;
+    this.score = 0;
+    this.wave = 1;
+    this.enemiesKilled = 0;
+    this.enemiesPerWave = 3;
+
     // Player
     this.player = this.physics.add.sprite(64, 64, null);
     this.player.setSize(12, 12);
     this.player.setOffset(2, 2);
     this.player.body.setCollideWorldBounds(true);
+    this.playerHealth = 100;
+    this.maxHealth = 100;
+    this.isInvulnerable = false;
 
     // Draw player placeholder
     this.playerGfx = this.add.rectangle(
@@ -34,6 +44,7 @@ export default class GameScene extends Phaser.Scene {
     // Camera
     this.cameras.main.startFollow(this.player);
     this.cameras.main.setZoom(2);
+    this.cameras.main.setBackgroundColor('#1a1a1a');
 
     // Movement input
     this.cursors = this.input.keyboard.createCursorKeys();
@@ -42,10 +53,27 @@ export default class GameScene extends Phaser.Scene {
     this.physics.add.collider(this.player, this.mapLoader.walls);
     this.physics.add.collider(this.player, this.mapLoader.furniture);
 
-    // Overlaps
+    // Recharge stations (visual)
+    this.rechargeStations = this.physics.add.staticGroup();
+    this.createRechargeStation(300, 200);
+    this.createRechargeStation(500, 400);
+
+    // Health pickups
+    this.healthPickups = this.physics.add.group();
+
+    // Overlaps with map stations
     this.physics.add.overlap(
       this.player,
       this.mapLoader.stations,
+      this.onRecharge,
+      null,
+      this
+    );
+
+    // Overlaps with manual recharge stations
+    this.physics.add.overlap(
+      this.player,
+      this.rechargeStations,
       this.onRecharge,
       null,
       this
@@ -59,15 +87,31 @@ export default class GameScene extends Phaser.Scene {
       this
     );
 
+    // Health pickup overlap
+    this.physics.add.overlap(
+      this.player,
+      this.healthPickups,
+      this.collectHealth,
+      null,
+      this
+    );
+
     // Enemies
     this.enemies = this.physics.add.group();
-    this.spawnEnemy(200, 200);
-    this.spawnEnemy(400, 300);
-    this.spawnEnemy(600, 150);
+    this.spawnWave();
 
     // Enemy collision
     this.physics.add.collider(this.enemies, this.mapLoader.walls);
     this.physics.add.collider(this.enemies, this.mapLoader.furniture);
+
+    // Enemy hits player
+    this.physics.add.overlap(
+      this.player,
+      this.enemies,
+      this.enemyHitPlayer,
+      null,
+      this
+    );
 
     // Bullets - use a proper group with recycling
     this.bullets = this.physics.add.group({
@@ -95,9 +139,8 @@ export default class GameScene extends Phaser.Scene {
     this.recharging = false;
     this.rechargeKey = this.input.keyboard.addKey("E");
 
-    // Simple UI
-    this.energyBarBg = this.add.rectangle(20, 20, 52, 6, 0x222222).setScrollFactor(0).setDepth(100);
-    this.energyBar = this.add.rectangle(20, 20, 50, 4, 0x00ff88).setScrollFactor(0).setDepth(101);
+    // UI Setup
+    this.createUI();
 
     // Player speed
     this.baseSpeed = 120;
@@ -105,10 +148,63 @@ export default class GameScene extends Phaser.Scene {
 
     // Shooting cooldown
     this.lastShotTime = 0;
-    this.shotCooldown = 150; // ms between shots
+    this.shotCooldown = 150;
+  }
+
+  createUI() {
+    const uiX = 10;
+    const uiY = 10;
+
+    // Energy bar
+    this.energyBarBg = this.add.rectangle(uiX + 26, uiY + 10, 52, 6, 0x222222).setScrollFactor(0).setDepth(100).setOrigin(0, 0.5);
+    this.energyBar = this.add.rectangle(uiX + 26, uiY + 10, 50, 4, 0x00ff88).setScrollFactor(0).setDepth(101).setOrigin(0, 0.5);
+    this.add.text(uiX, uiY + 7, 'Energy:', { fontSize: '8px', fill: '#ffffff' }).setScrollFactor(0).setDepth(100);
+
+    // Health bar
+    this.healthBarBg = this.add.rectangle(uiX + 26, uiY + 20, 52, 6, 0x222222).setScrollFactor(0).setDepth(100).setOrigin(0, 0.5);
+    this.healthBar = this.add.rectangle(uiX + 26, uiY + 20, 50, 4, 0xff0000).setScrollFactor(0).setDepth(101).setOrigin(0, 0.5);
+    this.add.text(uiX, uiY + 17, 'Health:', { fontSize: '8px', fill: '#ffffff' }).setScrollFactor(0).setDepth(100);
+
+    // Score and stats
+    this.scoreText = this.add.text(uiX, uiY + 30, 'Kills: 0', {
+      fontSize: '8px',
+      fill: '#ffff00'
+    }).setScrollFactor(0).setDepth(100);
+
+    this.waveText = this.add.text(uiX, uiY + 40, 'Wave: 1', {
+      fontSize: '8px',
+      fill: '#00ffff'
+    }).setScrollFactor(0).setDepth(100);
+
+    // Instructions
+    this.instructionText = this.add.text(uiX, uiY + 55, 'WASD/Arrows: Move\nSpace: Shoot\nE: Recharge', {
+      fontSize: '7px',
+      fill: '#ffffff',
+      lineSpacing: 2
+    }).setScrollFactor(0).setDepth(100).setAlpha(0.7);
+
+    // Game over text (hidden initially)
+    this.gameOverText = this.add.text(
+      this.cameras.main.width / 4,
+      this.cameras.main.height / 4,
+      'GAME OVER\n\nPress R to Restart',
+      {
+        fontSize: '16px',
+        fill: '#ff0000',
+        align: 'center'
+      }
+    ).setScrollFactor(0).setDepth(200).setVisible(false);
   }
 
   update(time) {
+    if (this.isGameOver) {
+      // Check for restart
+      if (this.input.keyboard.addKey('R').isDown) {
+        this.scene.restart();
+      }
+      return;
+    }
+
     // Player movement
     const speed = this.baseSpeed + this.speedBoost;
     this.player.setVelocity(0);
@@ -120,7 +216,7 @@ export default class GameScene extends Phaser.Scene {
 
     // Recharge mechanic
     if (this.recharging && this.rechargeKey.isDown) {
-      this.energy = Math.min(this.energy + 0.5, this.maxEnergy);
+      this.energy = Math.min(this.energy + 0.8, this.maxEnergy);
     }
 
     // Shooting with cooldown
@@ -135,16 +231,35 @@ export default class GameScene extends Phaser.Scene {
     }
 
     // Update energy UI
-    const pct = this.energy / this.maxEnergy;
-    this.energyBar.width = 50 * pct;
+    const energyPct = this.energy / this.maxEnergy;
+    this.energyBar.width = 50 * energyPct;
+    
+    if (energyPct < 0.3) {
+      this.energyBar.fillColor = 0xff0000;
+    } else if (energyPct < 0.6) {
+      this.energyBar.fillColor = 0xffaa00;
+    } else {
+      this.energyBar.fillColor = 0x00ff88;
+    }
+
+    // Update health UI
+    const healthPct = this.playerHealth / this.maxHealth;
+    this.healthBar.width = 50 * healthPct;
 
     // Sync player graphic
     this.playerGfx.setPosition(this.player.x, this.player.y);
+    
+    // Flash player when invulnerable
+    if (this.isInvulnerable) {
+      this.playerGfx.setAlpha(Math.sin(time * 0.02) * 0.5 + 0.5);
+    } else {
+      this.playerGfx.setAlpha(1);
+    }
 
     // Reset recharge flag each frame
     this.recharging = false;
 
-    // Enemy AI (follow player) - optimized
+    // Enemy AI
     this.enemies.children.entries.forEach(enemy => {
       if (!enemy || !enemy.active) return;
 
@@ -160,11 +275,61 @@ export default class GameScene extends Phaser.Scene {
         enemy.body.setVelocity(0, 0);
       }
 
-      // Sync graphics
       if (enemy.gfx) {
         enemy.gfx.setPosition(enemy.x, enemy.y);
       }
     });
+
+    // Pulse recharge stations
+    this.rechargeStations.children.entries.forEach(station => {
+      if (!station || !station.gfx) return;
+      const pulse = Math.sin(time * 0.003) * 0.2 + 0.8;
+      station.gfx.setAlpha(pulse);
+    });
+
+    // Check if wave is complete
+    if (this.enemies.countActive(true) === 0) {
+      this.startNextWave();
+    }
+  }
+
+  createRechargeStation(x, y) {
+    const station = this.rechargeStations.create(x, y, null);
+    station.setSize(16, 16);
+    station.body.setSize(16, 16);
+    
+    station.gfx = this.add.rectangle(x, y, 16, 16, 0x00ff00);
+    station.gfx.setDepth(3);
+    station.gfx.setAlpha(0.6);
+    
+    const indicator = this.add.circle(x, y, 4, 0xffffff);
+    indicator.setDepth(4);
+    station.indicator = indicator;
+  }
+
+  spawnHealthPickup(x, y) {
+    const health = this.add.circle(x, y, 6, 0xff00ff);
+    health.setDepth(4);
+    this.physics.world.enable(health);
+    health.body.setCircle(6);
+    this.healthPickups.add(health);
+
+    // Pulse effect
+    this.tweens.add({
+      targets: health,
+      scale: { from: 0.8, to: 1.2 },
+      duration: 500,
+      yoyo: true,
+      repeat: -1
+    });
+  }
+
+  collectHealth(player, healthPickup) {
+    this.playerHealth = Math.min(this.playerHealth + 30, this.maxHealth);
+    healthPickup.destroy();
+    
+    // Flash effect
+    this.cameras.main.flash(200, 0, 255, 0);
   }
 
   onRecharge() {
@@ -173,33 +338,64 @@ export default class GameScene extends Phaser.Scene {
 
   onPowerUp(player, station) {
     this.speedBoost = 80;
+    this.maxEnergy += 20;
+    this.energy = this.maxEnergy;
     if (station.gfx) station.gfx.destroy();
     station.destroy();
+    
+    this.cameras.main.flash(200, 255, 255, 0);
   }
 
   spawnEnemy(x, y) {
     const enemy = this.physics.add.sprite(x, y, null);
     enemy.setSize(12, 12);
-    enemy.speed = 30;
+    enemy.speed = 30 + (this.wave * 2); // Enemies get faster each wave
     enemy.body.setCollideWorldBounds(true);
 
-    // Visual
     enemy.gfx = this.add.rectangle(x, y, 12, 12, 0xff5555);
     enemy.gfx.setDepth(5);
 
     this.enemies.add(enemy);
   }
 
+  spawnWave() {
+    const numEnemies = this.enemiesPerWave + Math.floor(this.wave / 2);
+    
+    for (let i = 0; i < numEnemies; i++) {
+      // Random spawn position (away from player)
+      let x, y;
+      do {
+        x = Phaser.Math.Between(100, 700);
+        y = Phaser.Math.Between(100, 500);
+      } while (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) < 150);
+      
+      this.spawnEnemy(x, y);
+    }
+  }
+
+  startNextWave() {
+    this.wave++;
+    this.waveText.setText(`Wave: ${this.wave}`);
+    
+    // Maybe spawn health pickup
+    if (Math.random() < 0.4) {
+      const x = Phaser.Math.Between(150, 650);
+      const y = Phaser.Math.Between(150, 450);
+      this.spawnHealthPickup(x, y);
+    }
+    
+    this.time.delayedCall(1500, () => {
+      this.spawnWave();
+    });
+  }
+
   fireBullet() {
-    // Create bullet sprite
-    const bullet = this.add.circle(this.player.x, this.player.y, 3, 0xffff00);
+    const bullet = this.add.circle(this.player.x, this.player.y, 3, 0xffffff);
     bullet.setDepth(8);
     
-    // Add physics
     this.physics.world.enable(bullet);
     this.bullets.add(bullet);
 
-    // Calculate direction to mouse
     const pointer = this.input.activePointer;
     const worldX = pointer.worldX;
     const worldY = pointer.worldY;
@@ -217,10 +413,8 @@ export default class GameScene extends Phaser.Scene {
       Math.sin(angle) * speed
     );
 
-    // Set circle body size
     bullet.body.setCircle(3);
 
-    // Auto-destroy after 1 second
     this.time.delayedCall(1000, () => {
       if (bullet && bullet.active) {
         bullet.destroy();
@@ -229,13 +423,83 @@ export default class GameScene extends Phaser.Scene {
   }
 
   bulletHitEnemy(bullet, enemy) {
-    // Destroy bullet
     if (bullet) bullet.destroy();
     
-    // Destroy enemy and its graphics
     if (enemy) {
+      // Death particle effect
+      for (let i = 0; i < 8; i++) {
+        const particle = this.add.circle(enemy.x, enemy.y, 2, 0xff5555);
+        particle.setDepth(9);
+        const angle = (Math.PI * 2 * i) / 8;
+        const speed = 100;
+        
+        this.tweens.add({
+          targets: particle,
+          x: enemy.x + Math.cos(angle) * 30,
+          y: enemy.y + Math.sin(angle) * 30,
+          alpha: 0,
+          duration: 400,
+          onComplete: () => particle.destroy()
+        });
+      }
+      
       if (enemy.gfx) enemy.gfx.destroy();
       enemy.destroy();
+      
+      // Update score
+      this.enemiesKilled++;
+      this.score += 10;
+      this.scoreText.setText(`Kills: ${this.enemiesKilled}`);
+      
+      // Screen shake
+      this.cameras.main.shake(100, 0.002);
     }
+  }
+
+  enemyHitPlayer(player, enemy) {
+    if (this.isInvulnerable) return;
+    
+    this.playerHealth -= 15;
+    this.healthBar.width = (this.playerHealth / this.maxHealth) * 50;
+    
+    // Knockback
+    const angle = Phaser.Math.Angle.Between(enemy.x, enemy.y, player.x, player.y);
+    player.setVelocity(
+      Math.cos(angle) * 200,
+      Math.sin(angle) * 200
+    );
+    
+    // Invulnerability frames
+    this.isInvulnerable = true;
+    this.time.delayedCall(800, () => {
+      this.isInvulnerable = false;
+    });
+    
+    // Camera shake and flash
+    this.cameras.main.shake(200, 0.01);
+    this.cameras.main.flash(100, 255, 0, 0);
+    
+    // Check for death
+    if (this.playerHealth <= 0) {
+      this.gameOver();
+    }
+  }
+
+  gameOver() {
+    this.isGameOver = true;
+    this.playerGfx.setVisible(false);
+    this.gameOverText.setVisible(true);
+    this.gameOverText.setText(
+      `GAME OVER\n\nWave: ${this.wave}\nKills: ${this.enemiesKilled}\nScore: ${this.score}\n\nPress R to Restart`
+    );
+    
+    // Freeze enemies
+    this.enemies.children.entries.forEach(enemy => {
+      if (enemy && enemy.body) {
+        enemy.body.setVelocity(0, 0);
+      }
+    });
+    
+    this.cameras.main.shake(500, 0.02);
   }
 }
