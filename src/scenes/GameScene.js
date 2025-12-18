@@ -137,6 +137,9 @@ export default class GameScene extends Phaser.Scene {
     // Shooting cooldown
     this.lastShotTime = 0;
     this.shotCooldown = 150;
+    
+    // Wave spawning flag
+    this.spawningWave = false;
   }
 
   createMap() {
@@ -342,8 +345,8 @@ export default class GameScene extends Phaser.Scene {
       }
     }
 
-    // Check if wave is complete
-    if (this.enemies.countActive(true) === 0 && !this.isGameOver) {
+    // Check if wave is complete (but prevent immediate triggering)
+    if (this.enemies.countActive(true) === 0 && !this.isGameOver && !this.spawningWave) {
       this.startNextWave();
     }
   }
@@ -391,6 +394,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   spawnWave() {
+    this.spawningWave = true;
     const numEnemies = this.enemiesPerWave + Math.floor(this.wave / 2);
     
     for (let i = 0; i < numEnemies; i++) {
@@ -404,9 +408,16 @@ export default class GameScene extends Phaser.Scene {
       
       this.spawnEnemy(x, y);
     }
+    
+    // Reset flag after a short delay to ensure enemies are spawned
+    this.time.delayedCall(100, () => {
+      this.spawningWave = false;
+    });
   }
 
   startNextWave() {
+    if (this.spawningWave) return; // Prevent double-triggering
+    
     this.wave++;
     this.waveText.setText(`Wave: ${this.wave}`);
     
@@ -417,6 +428,7 @@ export default class GameScene extends Phaser.Scene {
       this.spawnHealthPickup(x, y);
     }
     
+    this.spawningWave = true;
     this.time.delayedCall(1500, () => {
       this.spawnWave();
     });
