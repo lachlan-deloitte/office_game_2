@@ -36,6 +36,7 @@ export default class GameScene extends Phaser.Scene {
     this.load.audio('shootSFX', 'assets/audio/shoot.wav');
     this.load.audio('hurtSFX', 'assets/audio/hurt.mp3');
     this.load.audio('rechargeSFX', 'assets/audio/recharge.mp3');
+    this.load.audio('healthSFX', 'assets/audio/health.mp3');
     this.load.audio('teamsSFX', 'assets/audio/teams_call.mp3');
     
   }
@@ -51,6 +52,7 @@ create() {
     this.shootSound = this.sound.add('shootSFX', { volume: 0.7 });
     this.hurtSound = this.sound.add('hurtSFX', { volume: 0.7 });
     this.rechargeSound = this.sound.add('rechargeSFX', { volume: 0.7 });
+    this.healthSound = this.sound.add('healthSFX', { volume: 0.7 });
 
     // Set world bounds
     this.physics.world.setBounds(0, 0, 800, 600);
@@ -187,6 +189,17 @@ create() {
     this.specialEventTimer = null;     // Countdown for player
     this.specialEventDuration = 15000; // 15 seconds to reach desk
     this.specialEventMusic = this.sound.add('teamsSFX', { volume: 0.6, loop: true });
+    // Arrow pointing to desk where the call is coming from
+    this.specialEventArrow = this.add.triangle(
+        0, 0, 
+        0, 20,  // left
+        40, 10, // tip
+        0, 0,   // right
+        0xff0000
+    );
+    this.specialEventArrow.setDepth(200);
+    this.specialEventArrow.setVisible(false); // hidden by default
+
   }
 
   createMap() {
@@ -456,6 +469,27 @@ update(time) {
             }
         }
     }
+    if (this.specialEventActive && this.specialEventDesk) {
+        // Make arrow visible
+        this.specialEventArrow.setVisible(true);
+
+        // Position arrow near player
+        const px = this.player.x;
+        const py = this.player.y;
+        this.specialEventArrow.setPosition(px, py - 30); // 30 pixels above player
+
+        // Compute angle to desk
+        const dx = this.specialEventDesk.x - px;
+        const dy = this.specialEventDesk.y - py;
+        const angle = Phaser.Math.Angle.Between(px, py, this.specialEventDesk.x, this.specialEventDesk.y);
+
+        // Rotate arrow
+        this.specialEventArrow.setRotation(angle);
+    } else {
+        // Hide arrow if no special event
+        this.specialEventArrow.setVisible(false);
+    }
+
 }
 
 createRechargeStation(x, y) {
@@ -483,244 +517,260 @@ createRechargeStation(x, y) {
 }
 
 
-spawnHealthPickup(x, y) {
-    const health = this.add.sprite(x, y, 'coffee');
-    health.setDepth(4);
-    this.physics.world.enable(health);
-    health.body.setCircle(6);
-    this.healthPickups.add(health);
-}
+  spawnHealthPickup(x, y) {
+      const health = this.add.sprite(x, y, 'coffee');
+      health.setDepth(4);
+      this.physics.world.enable(health);
+      health.body.setCircle(6);
+      this.healthPickups.add(health);
+  }
 
-collectHealth(player, healthPickup) {
-    this.playerHealth = Math.min(this.playerHealth + 30, this.maxHealth);
-    healthPickup.destroy();
-}
+  collectHealth(player, healthPickup) {
+      this.playerHealth = Math.min(this.playerHealth + 30, this.maxHealth);
 
-onRecharge(player, station) {
-  this.recharging = true;
+      // Play health  sound
+      this.healthSound.play();
 
-  // Show the recharge bar
-  station.rechargeBarBg.setVisible(true);
-  station.rechargeBar.setVisible(true);
+      healthPickup.destroy();
+  }
 
-  // Update bar width based on energy
-  const pct = this.energy / this.maxEnergy;
-  station.rechargeBar.width = station.width * pct;
-}
+  onRecharge(player, station) {
+    this.recharging = true;
 
-spawnEnemy(x, y) {
-    const enemy = this.physics.add.sprite(x, y, 'enemy-down');
-    const width = enemy.width;   // 62
-    const height = enemy.height; // 90
-    enemy.body.setSize(width, height);
-    enemy.body.setOffset(0, 0); // centered
-    enemy.speed = 30 + (this.wave * 2);
-    enemy.body.setCollideWorldBounds(true);
-    this.enemies.add(enemy);
-}
+    // Show the recharge bar
+    station.rechargeBarBg.setVisible(true);
+    station.rechargeBar.setVisible(true);
 
-spawnWave() {
-    this.spawningWave = true;
-    const numEnemies = this.enemiesPerWave + Math.floor(this.wave / 2);
-    
-    for (let i = 0; i < numEnemies; i++) {
-      let x, y;
-      let attempts = 0;
-      do {
-        x = Phaser.Math.Between(100, 700);
-        y = Phaser.Math.Between(100, 500);
-        attempts++;
-      } while (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) < 150 && attempts < 10);
+    // Update bar width based on energy
+    const pct = this.energy / this.maxEnergy;
+    station.rechargeBar.width = station.width * pct;
+  }
+
+  spawnEnemy(x, y) {
+      const enemy = this.physics.add.sprite(x, y, 'enemy-down');
+      const width = enemy.width;   // 62
+      const height = enemy.height; // 90
+      enemy.body.setSize(width, height);
+      enemy.body.setOffset(0, 0); // centered
+      enemy.speed = 30 + (this.wave * 2);
+      enemy.body.setCollideWorldBounds(true);
+      this.enemies.add(enemy);
+  }
+
+  spawnWave() {
+      this.spawningWave = true;
+      const numEnemies = this.enemiesPerWave + Math.floor(this.wave / 2);
       
-      this.spawnEnemy(x, y);
-    }
-    
-    // Reset flag after a short delay to ensure enemies are spawned
-    this.time.delayedCall(100, () => {
-      this.spawningWave = false;
-    });
-}
-
-startNextWave() {
-    if (this.spawningWave) return; // Prevent double-triggering
-    
-    this.wave++;
-    this.waveText.setText(`Wave: ${this.wave}`);
-    
-    // Maybe spawn health pickup
-    if (Math.random() < 0.4) {
-      const x = Phaser.Math.Between(150, 650);
-      const y = Phaser.Math.Between(150, 450);
-      this.spawnHealthPickup(x, y);
-    }
-    
-    this.spawningWave = true;
-    this.time.delayedCall(1500, () => {
-      this.spawnWave();
-      // Schedule special event after wave ends
-      this.startSpecialEventTimer();
-    });
-}
-
-fireBullet() {
-  // Create a bullet sprite
-  const bullet = this.physics.add.sprite(this.player.x, this.player.y, 'bullet');
-  bullet.setDepth(8);
-
-  // Set size if your sprite is larger than desired hitbox
-  bullet.body.setSize(8, 8); // optional, depends on your sprite
-  bullet.body.setOffset(0, 0);
-
-  // Add to bullets group
-  this.bullets.add(bullet);
-
-  // Calculate velocity
-  const speed = 400;
-  bullet.body.setVelocity(
-    Math.cos(this.playerFacingAngle) * speed,
-    Math.sin(this.playerFacingAngle) * speed
-  );
-
-  // Play shooting sound
-  this.shootSound.play();
-
-  // Destroy after 1 second to prevent memory leaks
-  this.time.delayedCall(1000, () => {
-    if (bullet && bullet.active) bullet.destroy();
-  });
-}
-
-bulletHitEnemy(bullet, enemy) {
-    if (bullet) bullet.destroy();
-    
-    if (enemy) {
-      // Simplified particle effect
-      for (let i = 0; i < 4; i++) {
-        const angle = (Math.PI * 2 * i) / 4;
-        const particle = this.add.circle(enemy.x, enemy.y, 2, 0xff5555);
-        particle.setDepth(9);
+      for (let i = 0; i < numEnemies; i++) {
+        let x, y;
+        let attempts = 0;
+        do {
+          x = Phaser.Math.Between(100, 700);
+          y = Phaser.Math.Between(100, 500);
+          attempts++;
+        } while (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) < 150 && attempts < 10);
         
-        this.tweens.add({
-          targets: particle,
-          x: enemy.x + Math.cos(angle) * 20,
-          y: enemy.y + Math.sin(angle) * 20,
-          alpha: 0,
-          duration: 300,
-          onComplete: () => particle.destroy()
-        });
+        this.spawnEnemy(x, y);
       }
       
-      if (enemy.gfx) enemy.gfx.destroy();
-      enemy.destroy();
+      // Reset flag after a short delay to ensure enemies are spawned
+      this.time.delayedCall(100, () => {
+        this.spawningWave = false;
+      });
+  }
+
+  startNextWave() {
+      if (this.spawningWave) return; // Prevent double-triggering
       
-      this.enemiesKilled++;
-      this.score += 10;
-      this.scoreText.setText(`Kills: ${this.enemiesKilled}`);
-    }
-}
-
-enemyHitPlayer(player, enemy) {
-    if (this.isInvulnerable) return;
-    
-    this.playerHealth -= 15;
-    this.hurtSound.play();
-    
-    // Knockback
-    const angle = Phaser.Math.Angle.Between(enemy.x, enemy.y, player.x, player.y);
-    player.setVelocity(
-      Math.cos(angle) * 200,
-      Math.sin(angle) * 200
-    );
-    
-    // Invulnerability frames
-    this.isInvulnerable = true;
-    this.time.delayedCall(800, () => {
-      this.isInvulnerable = false;
-    });
-    
-    // Check for death
-    if (this.playerHealth <= 0) {
-      this.gameOver();
-    }
-}
-
-gameOver() {
-    this.isGameOver = true;
-    this.player.setVisible(false);
-    this.gameOverText.setVisible(true);
-    this.gameOverText.setText(
-      `GAME OVER\n\nWave: ${this.wave}\nKills: ${this.enemiesKilled}\nScore: ${this.score}\n\nPress R to Restart`
-    );
-    
-    // Freeze enemies
-    const enemies = this.enemies.getChildren();
-    for (let i = 0; i < enemies.length; i++) {
-      if (enemies[i].body) {
-        enemies[i].body.setVelocity(0, 0);
+      this.wave++;
+      this.waveText.setText(`Wave: ${this.wave}`);
+      
+      // Maybe spawn health pickup
+      if (Math.random() < 0.4) {
+        const x = Phaser.Math.Between(150, 650);
+        const y = Phaser.Math.Between(150, 450);
+        this.spawnHealthPickup(x, y);
       }
-    }
-};
+      
+      this.spawningWave = true;
+      this.time.delayedCall(1500, () => {
+        this.spawnWave();
+        // Schedule special event after wave ends
+        this.startSpecialEventTimer();
+      });
+  }
 
-startSpecialEventTimer() {
-    if (this.wave < 3 || this.specialEventActive) return;
+  fireBullet() {
+    // Create a bullet sprite
+    const bullet = this.physics.add.sprite(this.player.x, this.player.y, 'bullet');
+    bullet.setDepth(8);
 
-    this.time.delayedCall(Phaser.Math.Between(25000, 35000), () => {
-        this.startSpecialEvent();
+    // Set size if your sprite is larger than desired hitbox
+    bullet.body.setSize(8, 8); // optional, depends on your sprite
+    bullet.body.setOffset(0, 0);
+
+    // Add to bullets group
+    this.bullets.add(bullet);
+
+    // Calculate velocity
+    const speed = 400;
+    bullet.body.setVelocity(
+      Math.cos(this.playerFacingAngle) * speed,
+      Math.sin(this.playerFacingAngle) * speed
+    );
+
+    // Play shooting sound
+    this.shootSound.play();
+
+    // Destroy after 1 second to prevent memory leaks
+    this.time.delayedCall(1000, () => {
+      if (bullet && bullet.active) bullet.destroy();
     });
-}
+  }
 
-startSpecialEvent() {
+  bulletHitEnemy(bullet, enemy) {
+      if (bullet) bullet.destroy();
+      
+      if (enemy) {
+        // Simplified particle effect
+        for (let i = 0; i < 4; i++) {
+          const angle = (Math.PI * 2 * i) / 4;
+          const particle = this.add.circle(enemy.x, enemy.y, 2, 0xff5555);
+          particle.setDepth(9);
+          
+          this.tweens.add({
+            targets: particle,
+            x: enemy.x + Math.cos(angle) * 20,
+            y: enemy.y + Math.sin(angle) * 20,
+            alpha: 0,
+            duration: 300,
+            onComplete: () => particle.destroy()
+          });
+        }
+        
+        if (enemy.gfx) enemy.gfx.destroy();
+        enemy.destroy();
+        
+        this.enemiesKilled++;
+        this.score += 10;
+        this.scoreText.setText(`Kills: ${this.enemiesKilled}`);
+      }
+  }
+
+  enemyHitPlayer(player, enemy) {
+      if (this.isInvulnerable) return;
+      
+      this.playerHealth -= 15;
+      this.hurtSound.play();
+      
+      // Knockback
+      const angle = Phaser.Math.Angle.Between(enemy.x, enemy.y, player.x, player.y);
+      player.setVelocity(
+        Math.cos(angle) * 200,
+        Math.sin(angle) * 200
+      );
+      
+      // Invulnerability frames
+      this.isInvulnerable = true;
+      this.time.delayedCall(800, () => {
+        this.isInvulnerable = false;
+      });
+      
+      // Check for death
+      if (this.playerHealth <= 0) {
+        this.gameOver();
+      }
+  }
+
+  gameOver() {
+      this.isGameOver = true;
+      this.player.setVisible(false);
+      this.gameOverText.setVisible(true);
+      this.gameOverText.setText(
+        `GAME OVER\n\nWave: ${this.wave}\nKills: ${this.enemiesKilled}\nScore: ${this.score}\n\nPress R to Restart`
+      );
+      
+      // Freeze enemies
+      const enemies = this.enemies.getChildren();
+      for (let i = 0; i < enemies.length; i++) {
+        if (enemies[i].body) {
+          enemies[i].body.setVelocity(0, 0);
+        }
+      }
+
+      // Stop special event music if playing
+      if (this.specialBgm && this.specialBgm.isPlaying) {
+          this.specialBgm.stop();
+      }
+
+      // stop normal background music as well
+      if (this.bgm && this.bgm.isPlaying) {
+          this.bgm.stop();
+      }
+  };
+
+  startSpecialEventTimer() {
+      if (this.wave < 3 || this.specialEventActive) return;
+
+      this.time.delayedCall(Phaser.Math.Between(25000, 35000), () => {
+          this.startSpecialEvent();
+      });
+  }
+
+  startSpecialEvent() {
+    if (this.specialEventActive) return;
+
     this.specialEventActive = true;
 
-    // Stop regular background music
+    // Stop normal BGM
     if (this.bgMusic && this.bgMusic.isPlaying) this.bgMusic.stop();
 
     // Play special music
+    if (!this.specialEventMusic) {
+        this.specialEventMusic = this.sound.add('specialMusic', { loop: true });
+    }
     this.specialEventMusic.play();
 
-    // Randomly pick a desk to replace
-    const desks = this.walls.getChildren().filter(d => !d.isRecharge); // only normal desks
+    // Pick a random desk
+    const desks = this.walls.getChildren().filter(d => !d.isRecharge);
     const randomDesk = Phaser.Utils.Array.GetRandom(desks);
 
     // Remove old desk
     randomDesk.destroy();
 
-    // Place new special desk
-    this.specialEventDesk = this.walls.create(randomDesk.x, randomDesk.y, 'specialDesk');
+    // Spawn special desk
+    this.specialEventDesk = this.physics.add.sprite(randomDesk.x, randomDesk.y, 'specialDesk');
     this.specialEventDesk.setSize(113, 68);
-    this.specialEventDesk.setOrigin(0.5);
-    this.specialEventDesk.refreshBody();
-
-    // Show some visual cue
+    this.specialEventDesk.setOffset(-113/2, -68/2);
+    this.specialEventDesk.body.setImmovable(true);
     this.specialEventDesk.setDepth(5);
 
     // Start countdown
     this.specialEventTimer = this.time.delayedCall(this.specialEventDuration, () => {
-        // Player failed
         this.gameOver();
     }, [], this);
 }
 
-
 completeSpecialEvent() {
-    this.specialEventActive = false;
-
     // Stop special music
-    this.specialEventMusic.stop();
-    this.specialEventSFX.stop();
+    if (this.specialEventMusic && this.specialEventMusic.isPlaying) {
+        this.specialEventMusic.stop();
+    }
 
-    // Resume normal music
-    this.bgMusic.play();
+    // Resume normal BGM
+    if (this.bgMusic && !this.bgMusic.isPlaying) {
+        this.bgMusic.play();
+    }
 
-    // Remove the special desk (or keep it)
-    if (this.specialEventDesk) this.specialEventDesk.destroy();
-    this.specialEventDesk = null;
+    // Remove special desk
+    if (this.specialEventDesk) {
+        this.specialEventDesk.destroy();
+        this.specialEventDesk = null;
+    }
 
-    // Cancel timer
-    if (this.specialEventTimer) this.specialEventTimer.remove(false);
-
-    // Schedule next random event
-    this.startSpecialEventTimer();
+    // Reset flags
+    this.specialEventActive = false;
+    this.specialEventTimer = null;
 }
 
 
