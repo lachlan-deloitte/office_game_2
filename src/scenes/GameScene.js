@@ -30,6 +30,9 @@ export default class GameScene extends Phaser.Scene {
     this.playerHealth = 100;
     this.maxHealth = 100;
     this.isInvulnerable = false;
+    
+    // Player facing direction
+    this.playerFacingAngle = 0;
 
     // Draw player placeholder
     this.playerGfx = this.add.rectangle(
@@ -48,6 +51,12 @@ export default class GameScene extends Phaser.Scene {
 
     // Movement input
     this.cursors = this.input.keyboard.createCursorKeys();
+    this.wasd = {
+      up: this.input.keyboard.addKey('W'),
+      down: this.input.keyboard.addKey('S'),
+      left: this.input.keyboard.addKey('A'),
+      right: this.input.keyboard.addKey('D')
+    };
 
     // Collisions
     this.physics.add.collider(this.player, this.mapLoader.walls);
@@ -113,10 +122,9 @@ export default class GameScene extends Phaser.Scene {
       this
     );
 
-    // Bullets - use a proper group with recycling
+    // Bullets
     this.bullets = this.physics.add.group({
-      defaultKey: null,
-      maxSize: 30,
+      maxSize: 20,
       runChildUpdate: false
     });
 
@@ -149,6 +157,9 @@ export default class GameScene extends Phaser.Scene {
     // Shooting cooldown
     this.lastShotTime = 0;
     this.shotCooldown = 150;
+    
+    // Particle pool for reuse
+    this.particlePool = [];
   }
 
   createUI() {
@@ -198,7 +209,6 @@ export default class GameScene extends Phaser.Scene {
 
   update(time) {
     if (this.isGameOver) {
-      // Check for restart
       if (this.input.keyboard.addKey('R').isDown) {
         this.scene.restart();
       }
@@ -207,12 +217,32 @@ export default class GameScene extends Phaser.Scene {
 
     // Player movement
     const speed = this.baseSpeed + this.speedBoost;
-    this.player.setVelocity(0);
+    let velocityX = 0;
+    let velocityY = 0;
 
-    if (this.cursors.left.isDown) this.player.setVelocityX(-speed);
-    if (this.cursors.right.isDown) this.player.setVelocityX(speed);
-    if (this.cursors.up.isDown) this.player.setVelocityY(-speed);
-    if (this.cursors.down.isDown) this.player.setVelocityY(speed);
+    if (this.cursors.left.isDown || this.wasd.left.isDown) {
+      velocityX = -speed;
+      this.playerFacingAngle = Math.PI;
+    }
+    if (this.cursors.right.isDown || this.wasd.right.isDown) {
+      velocityX = speed;
+      this.playerFacingAngle = 0;
+    }
+    if (this.cursors.up.isDown || this.wasd.up.isDown) {
+      velocityY = -speed;
+      this.playerFacingAngle = -Math.PI / 2;
+    }
+    if (this.cursors.down.isDown || this.wasd.down.isDown) {
+      velocityY = speed;
+      this.playerFacingAngle = Math.PI / 2;
+    }
+
+    // Handle diagonal movement
+    if (velocityX !== 0 && velocityY !== 0) {
+      this.playerFacingAngle = Math.atan2(velocityY, velocityX);
+    }
+
+    this.player.setVelocity(velocityX, velocityY);
 
     // Recharge mechanic
     if (this.recharging && this.rechargeKey.isDown) {
@@ -246,49 +276,67 @@ export default class GameScene extends Phaser.Scene {
     const healthPct = this.playerHealth / this.maxHealth;
     this.healthBar.width = 50 * healthPct;
 
-    // Sync player graphic
-    this.playerGfx.setPosition(this.player.x, this.player.y);
+    // Sync player graphic (once per frame)
+    this.playerGfx.x = this.player.x;
+    this.playerGfx.y = this.player.y;
     
     // Flash player when invulnerable
     if (this.isInvulnerable) {
-      this.playerGfx.setAlpha(Math.sin(time * 0.02) * 0.5 + 0.5);
+      this.playerGfx.alpha = (time % 200 < 100) ? 0.5 : 1;
     } else {
-      this.playerGfx.setAlpha(1);
+      this.playerGfx.alpha = 1;
     }
 
-    // Reset recharge flag each frame
+    // Reset recharge flag
     this.recharging = false;
 
-    // Enemy AI
-    this.enemies.children.entries.forEach(enemy => {
-      if (!enemy || !enemy.active) return;
+    // Enemy AI - optimized loop
+    const enemies = this.enemies.getChildren();
+    const px = this.player.x;
+    const py = this.player.y;
+    
+    for (let i = 0; i < enemies.length; i++) {
+      const enemy = enemies[i];
+      if (!enemy.active) continue;
 
-      const dx = this.player.x - enemy.x;
-      const dy = this.player.y - enemy.y;
+      const dx = px - enemy.x;
+      const dy = py - enemy.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
       if (dist > 4) {
-        const vx = (dx / dist) * enemy.speed;
-        const vy = (dy / dist) * enemy.speed;
-        enemy.body.setVelocity(vx, vy);
+        enemy.body.velocity.x = (dx / dist) * enemy.speed;
+        enemy.body.velocity.y = (dy / dist) * enemy.speed;
       } else {
-        enemy.body.setVelocity(0, 0);
+        enemy.body.velocity.x = 0;
+        enemy.body.velocity.y = 0;
       }
 
-      if (enemy.gfx) {
-        enemy.gfx.setPosition(enemy.x, enemy.y);
-      }
-    });
+      // Sync graphics
+      enemy.gfx.x = enemy.x;
+      enemy.gfx.y = enemy.y;
+    }
 
-    // Pulse recharge stations
-    this.rechargeStations.children.entries.forEach(station => {
-      if (!station || !station.gfx) return;
-      const pulse = Math.sin(time * 0.003) * 0.2 + 0.8;
-      station.gfx.setAlpha(pulse);
-    });
+    // Pulse recharge stations (throttled)
+    if (time % 100 < 50) {
+      const stations = this.rechargeStations.getChildren();
+      for (let i = 0; i < stations.length; i++) {
+        const station = stations[i];
+        if (station.gfx) {
+          station.gfx.alpha = 0.6;
+        }
+      }
+    } else {
+      const stations = this.rechargeStations.getChildren();
+      for (let i = 0; i < stations.length; i++) {
+        const station = stations[i];
+        if (station.gfx) {
+          station.gfx.alpha = 0.8;
+        }
+      }
+    }
 
     // Check if wave is complete
-    if (this.enemies.countActive(true) === 0) {
+    if (this.enemies.countActive(true) === 0 && !this.isGameOver) {
       this.startNextWave();
     }
   }
@@ -300,7 +348,7 @@ export default class GameScene extends Phaser.Scene {
     
     station.gfx = this.add.rectangle(x, y, 16, 16, 0x00ff00);
     station.gfx.setDepth(3);
-    station.gfx.setAlpha(0.6);
+    station.gfx.alpha = 0.6;
     
     const indicator = this.add.circle(x, y, 4, 0xffffff);
     indicator.setDepth(4);
@@ -313,23 +361,11 @@ export default class GameScene extends Phaser.Scene {
     this.physics.world.enable(health);
     health.body.setCircle(6);
     this.healthPickups.add(health);
-
-    // Pulse effect
-    this.tweens.add({
-      targets: health,
-      scale: { from: 0.8, to: 1.2 },
-      duration: 500,
-      yoyo: true,
-      repeat: -1
-    });
   }
 
   collectHealth(player, healthPickup) {
     this.playerHealth = Math.min(this.playerHealth + 30, this.maxHealth);
     healthPickup.destroy();
-    
-    // Flash effect
-    this.cameras.main.flash(200, 0, 255, 0);
   }
 
   onRecharge() {
@@ -342,14 +378,12 @@ export default class GameScene extends Phaser.Scene {
     this.energy = this.maxEnergy;
     if (station.gfx) station.gfx.destroy();
     station.destroy();
-    
-    this.cameras.main.flash(200, 255, 255, 0);
   }
 
   spawnEnemy(x, y) {
     const enemy = this.physics.add.sprite(x, y, null);
     enemy.setSize(12, 12);
-    enemy.speed = 30 + (this.wave * 2); // Enemies get faster each wave
+    enemy.speed = 30 + (this.wave * 2);
     enemy.body.setCollideWorldBounds(true);
 
     enemy.gfx = this.add.rectangle(x, y, 12, 12, 0xff5555);
@@ -362,7 +396,6 @@ export default class GameScene extends Phaser.Scene {
     const numEnemies = this.enemiesPerWave + Math.floor(this.wave / 2);
     
     for (let i = 0; i < numEnemies; i++) {
-      // Random spawn position (away from player)
       let x, y;
       do {
         x = Phaser.Math.Between(100, 700);
@@ -396,21 +429,10 @@ export default class GameScene extends Phaser.Scene {
     this.physics.world.enable(bullet);
     this.bullets.add(bullet);
 
-    const pointer = this.input.activePointer;
-    const worldX = pointer.worldX;
-    const worldY = pointer.worldY;
-    
-    const angle = Phaser.Math.Angle.Between(
-      this.player.x,
-      this.player.y,
-      worldX,
-      worldY
-    );
-
     const speed = 400;
     bullet.body.setVelocity(
-      Math.cos(angle) * speed,
-      Math.sin(angle) * speed
+      Math.cos(this.playerFacingAngle) * speed,
+      Math.sin(this.playerFacingAngle) * speed
     );
 
     bullet.body.setCircle(3);
@@ -426,19 +448,18 @@ export default class GameScene extends Phaser.Scene {
     if (bullet) bullet.destroy();
     
     if (enemy) {
-      // Death particle effect
-      for (let i = 0; i < 8; i++) {
+      // Simplified particle effect
+      for (let i = 0; i < 4; i++) {
+        const angle = (Math.PI * 2 * i) / 4;
         const particle = this.add.circle(enemy.x, enemy.y, 2, 0xff5555);
         particle.setDepth(9);
-        const angle = (Math.PI * 2 * i) / 8;
-        const speed = 100;
         
         this.tweens.add({
           targets: particle,
-          x: enemy.x + Math.cos(angle) * 30,
-          y: enemy.y + Math.sin(angle) * 30,
+          x: enemy.x + Math.cos(angle) * 20,
+          y: enemy.y + Math.sin(angle) * 20,
           alpha: 0,
-          duration: 400,
+          duration: 300,
           onComplete: () => particle.destroy()
         });
       }
@@ -446,13 +467,9 @@ export default class GameScene extends Phaser.Scene {
       if (enemy.gfx) enemy.gfx.destroy();
       enemy.destroy();
       
-      // Update score
       this.enemiesKilled++;
       this.score += 10;
       this.scoreText.setText(`Kills: ${this.enemiesKilled}`);
-      
-      // Screen shake
-      this.cameras.main.shake(100, 0.002);
     }
   }
 
@@ -460,7 +477,6 @@ export default class GameScene extends Phaser.Scene {
     if (this.isInvulnerable) return;
     
     this.playerHealth -= 15;
-    this.healthBar.width = (this.playerHealth / this.maxHealth) * 50;
     
     // Knockback
     const angle = Phaser.Math.Angle.Between(enemy.x, enemy.y, player.x, player.y);
@@ -474,10 +490,6 @@ export default class GameScene extends Phaser.Scene {
     this.time.delayedCall(800, () => {
       this.isInvulnerable = false;
     });
-    
-    // Camera shake and flash
-    this.cameras.main.shake(200, 0.01);
-    this.cameras.main.flash(100, 255, 0, 0);
     
     // Check for death
     if (this.playerHealth <= 0) {
@@ -494,12 +506,11 @@ export default class GameScene extends Phaser.Scene {
     );
     
     // Freeze enemies
-    this.enemies.children.entries.forEach(enemy => {
-      if (enemy && enemy.body) {
-        enemy.body.setVelocity(0, 0);
+    const enemies = this.enemies.getChildren();
+    for (let i = 0; i < enemies.length; i++) {
+      if (enemies[i].body) {
+        enemies[i].body.setVelocity(0, 0);
       }
-    });
-    
-    this.cameras.main.shake(500, 0.02);
+    }
   }
 }
