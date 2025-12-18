@@ -25,18 +25,23 @@ export default class GameScene extends Phaser.Scene {
     // Load recharge station 
     this.load.image('rechargeStation', 'assets/sprites/recharge_station.png');
 
+    //Load the teams call desk
+    this.load.image('specialDesk', 'assets/sprites/teams_call.png');
+
     // Load the music
     this.load.audio('bgMusic', 'assets/audio/metallica_ripoff.wav');
     this.load.audio('shootSFX', 'assets/audio/shoot.wav');
     this.load.audio('hurtSFX', 'assets/audio/hurt.mp3');
     this.load.audio('rechargeSFX', 'assets/audio/recharge.mp3');
+    this.load.audio('teamsSFX', 'assets/audio/teams_call.mp3');
+    
   }
 
   create() {
     // Play background music
     this.bgMusic = this.sound.add('bgMusic', {
-            volume: 0.5, // 0 = silent, 1 = full volume
-            loop: true   // Loop continuously
+            volume: 0.35, // 0 = silent, 1 = full volume
+            loop: true 
         });
 
     this.bgMusic.play();
@@ -174,6 +179,13 @@ export default class GameScene extends Phaser.Scene {
     
     // Wave spawning flag
     this.spawningWave = false;
+
+    // Teams call 
+    this.specialEventActive = false;   // Is the timed event happening?
+    this.specialEventDesk = null;      // The replaced desk
+    this.specialEventTimer = null;     // Countdown for player
+    this.specialEventDuration = 15000; // 15 seconds to reach desk
+    this.specialEventMusic = this.sound.add('teamsSFX', { volume: 0.6, loop: true });
   }
 
   createMap() {
@@ -429,6 +441,20 @@ update(time) {
         station.rechargeBar.setVisible(false);
       }
     });
+
+    // Teams call 
+    if (this.specialEventActive && this.specialEventDesk) {
+        if (Phaser.Input.Keyboard.JustDown(this.input.keyboard.addKey('Q'))) {
+            const px = this.player.x;
+            const py = this.player.y;
+            const deskBounds = this.specialEventDesk.getBounds();
+
+            if (Phaser.Geom.Rectangle.Contains(deskBounds, px, py)) {
+                // Player succeeded
+                this.completeSpecialEvent();
+            }
+        }
+    }
 }
 
 createRechargeStation(x, y) {
@@ -633,4 +659,66 @@ fireBullet() {
       }
     }
   }
+}
+
+startSpecialEventTimer() {
+    if (this.wave < 3 || this.specialEventActive) return;
+
+    this.time.delayedCall(Phaser.Math.Between(25000, 35000), () => {
+        this.startSpecialEvent();
+    });
+}
+
+startSpecialEvent() {
+    this.specialEventActive = true;
+
+    // Stop regular background music
+    if (this.bgMusic && this.bgMusic.isPlaying) this.bgMusic.stop();
+
+    // Play special music
+    this.specialEventMusic.play();
+
+    // Randomly pick a desk to replace
+    const desks = this.walls.getChildren().filter(d => !d.isRecharge); // only normal desks
+    const randomDesk = Phaser.Utils.Array.GetRandom(desks);
+
+    // Remove old desk
+    randomDesk.destroy();
+
+    // Place new special desk
+    this.specialEventDesk = this.walls.create(randomDesk.x, randomDesk.y, 'specialDesk');
+    this.specialEventDesk.setSize(113, 68);
+    this.specialEventDesk.setOrigin(0.5);
+    this.specialEventDesk.refreshBody();
+
+    // Show some visual cue
+    this.specialEventDesk.setDepth(5);
+
+    // Start countdown
+    this.specialEventTimer = this.time.delayedCall(this.specialEventDuration, () => {
+        // Player failed
+        this.gameOver();
+    }, [], this);
+}
+
+
+completeSpecialEvent() {
+    this.specialEventActive = false;
+
+    // Stop special music
+    this.specialEventMusic.stop();
+    this.specialEventSFX.stop();
+
+    // Resume normal music
+    this.bgMusic.play();
+
+    // Remove the special desk (or keep it)
+    if (this.specialEventDesk) this.specialEventDesk.destroy();
+    this.specialEventDesk = null;
+
+    // Cancel timer
+    if (this.specialEventTimer) this.specialEventTimer.remove(false);
+
+    // Schedule next random event
+    this.startSpecialEventTimer();
 }
