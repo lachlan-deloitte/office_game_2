@@ -53,31 +53,64 @@ export default class MapLoader {
     }
   }
 
-  spawn(type, x, y) {
-    const wx = x * this.TILE_SIZE;
-    const wy = y * this.TILE_SIZE;
+//   spawn(type, x, y) {
+//     const wx = x * this.TILE_SIZE;
+//     const wy = y * this.TILE_SIZE;
+//     const s = this.scene;
+
+//     switch (type) {
+//       case "floor":
+//         s.add.image(wx, wy, "floorTile").setOrigin(0);
+//         break;
+
+//       case "furniture":
+//         this.furniture.create(wx, wy, "furnitureTile").setOrigin(0);
+//         break;
+
+//       case "walls":
+//         this.walls.create(wx, wy, "wallTile").setOrigin(0);
+//         break;
+
+//       case "stations":
+//         this.stations.create(wx, wy, "stationTile").setOrigin(0);
+//         break;
+
+//       case "stations2":
+//         this.powerStations.create(wx, wy, "station2Tile").setOrigin(0);
+//         break;
+//     }
+//   }
+// }
+
+    spawn(type, x, y) {
+    const wx = x * this.TILE_SIZE + this.TILE_SIZE/2;
+    const wy = y * this.TILE_SIZE + this.TILE_SIZE/2;
     const s = this.scene;
 
     switch (type) {
-      case "floor":
-        s.add.image(wx, wy, "floorTile").setOrigin(0);
+        case "floor":
+        s.add.rectangle(wx, wy, this.TILE_SIZE, this.TILE_SIZE, 0x333333);
         break;
 
-      case "furniture":
-        this.furniture.create(wx, wy, "furnitureTile").setOrigin(0);
+        case "furniture":
+        const furn = s.add.rectangle(wx, wy, this.TILE_SIZE, this.TILE_SIZE, 0x8B4513);
+        this.furniture.add(s.physics.add.existing(furn, true));
         break;
 
-      case "walls":
-        this.walls.create(wx, wy, "wallTile").setOrigin(0);
+        case "walls":
+        const wall = s.add.rectangle(wx, wy, this.TILE_SIZE, this.TILE_SIZE, 0x666666);
+        this.walls.add(s.physics.add.existing(wall, true));
         break;
 
-      case "stations":
-        this.stations.create(wx, wy, "stationTile").setOrigin(0);
+        case "stations":
+        const station = s.add.rectangle(wx, wy, this.TILE_SIZE, this.TILE_SIZE, 0x00ff00);
+        this.stations.add(s.physics.add.existing(station, true));
         break;
 
-      case "stations2":
-        this.powerStations.create(wx, wy, "station2Tile").setOrigin(0);
+        case "stations2":
+        const power = s.add.rectangle(wx, wy, this.TILE_SIZE, this.TILE_SIZE, 0xffff00);
+        this.powerStations.add(s.physics.add.existing(power, true));
         break;
     }
-  }
+    }
 }
