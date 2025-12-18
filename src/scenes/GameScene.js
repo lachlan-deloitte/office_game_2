@@ -4,7 +4,20 @@ export default class GameScene extends Phaser.Scene {
   }
 
   preload() {
-    // No map loader needed anymore!
+    // Load player sprites
+    this.load.image('player-up', 'assets/sprites/player-up.png');
+    this.load.image('player-down', 'assets/sprites/player-down.png');
+    this.load.image('player-left', 'assets/sprites/player-left.png');
+    this.load.image('player-right', 'assets/sprites/player-right.png');
+    
+    // Load enemy sprites
+    this.load.image('enemy-up', 'assets/sprites/enemy-up.png');
+    this.load.image('enemy-down', 'assets/sprites/enemy-down.png');
+    this.load.image('enemy-left', 'assets/sprites/enemy-left.png');
+    this.load.image('enemy-right', 'assets/sprites/enemy-right.png');
+    
+    // Load desk collision sprite
+    this.load.image('desk', 'assets/sprites/desk-collision.png');
   }
 
   create() {
@@ -22,7 +35,7 @@ export default class GameScene extends Phaser.Scene {
     this.createMap();
 
     // Player
-    this.player = this.physics.add.sprite(400, 300, null);
+    this.player = this.physics.add.sprite(400, 300, 'player-down');
     this.player.setSize(12, 12);
     this.player.setOffset(2, 2);
     this.player.body.setCollideWorldBounds(true);
@@ -32,16 +45,17 @@ export default class GameScene extends Phaser.Scene {
     
     // Player facing direction
     this.playerFacingAngle = 0;
+    this.playerFacingDir = 'down'; // Track direction for sprite
 
-    // Draw player placeholder
-    this.playerGfx = this.add.rectangle(
-      this.player.x,
-      this.player.y,
-      12,
-      12,
-      0x4aa3ff
-    );
-    this.playerGfx.setDepth(10);
+    // Draw player placeholder (remove this since we're using sprites now)
+    // this.playerGfx = this.add.rectangle(
+    //   this.player.x,
+    //   this.player.y,
+    //   12,
+    //   12,
+    //   0x4aa3ff
+    // );
+    // this.playerGfx.setDepth(10);
 
     // Camera
     this.cameras.main.startFollow(this.player);
@@ -160,12 +174,12 @@ export default class GameScene extends Phaser.Scene {
     // Right wall
     this.createWall(790, 300, 20, 600);
 
-    // Interior walls/obstacles
-    this.createWall(200, 150, 100, 20);
-    this.createWall(600, 150, 100, 20);
-    this.createWall(400, 300, 20, 150);
-    this.createWall(150, 450, 150, 20);
-    this.createWall(650, 450, 150, 20);
+    // Interior desks/obstacles using sprite
+    this.createDesk(200, 150);
+    this.createDesk(600, 150);
+    this.createDesk(400, 300);
+    this.createDesk(150, 450);
+    this.createDesk(650, 450);
   }
 
   createWall(x, y, width, height) {
@@ -177,6 +191,13 @@ export default class GameScene extends Phaser.Scene {
     // Visual representation
     const wallGfx = this.add.rectangle(x, y, width, height, 0x555555);
     wallGfx.setDepth(2);
+  }
+
+  createDesk(x, y) {
+    // Create physics body with desk sprite
+    const desk = this.walls.create(x, y, 'desk');
+    desk.setDepth(2);
+    desk.refreshBody();
   }
 
   createUI() {
@@ -236,27 +257,38 @@ export default class GameScene extends Phaser.Scene {
     const speed = this.baseSpeed + this.speedBoost;
     let velocityX = 0;
     let velocityY = 0;
+    let newFacingDir = this.playerFacingDir;
 
     if (this.cursors.left.isDown || this.wasd.left.isDown) {
       velocityX = -speed;
       this.playerFacingAngle = Math.PI;
+      newFacingDir = 'left';
     }
     if (this.cursors.right.isDown || this.wasd.right.isDown) {
       velocityX = speed;
       this.playerFacingAngle = 0;
+      newFacingDir = 'right';
     }
     if (this.cursors.up.isDown || this.wasd.up.isDown) {
       velocityY = -speed;
       this.playerFacingAngle = -Math.PI / 2;
+      newFacingDir = 'up';
     }
     if (this.cursors.down.isDown || this.wasd.down.isDown) {
       velocityY = speed;
       this.playerFacingAngle = Math.PI / 2;
+      newFacingDir = 'down';
     }
 
-    // Handle diagonal movement
+    // Handle diagonal movement (prioritize last key pressed)
     if (velocityX !== 0 && velocityY !== 0) {
       this.playerFacingAngle = Math.atan2(velocityY, velocityX);
+    }
+
+    // Update player sprite if direction changed
+    if (newFacingDir !== this.playerFacingDir) {
+      this.playerFacingDir = newFacingDir;
+      this.player.setTexture(`player-${newFacingDir}`);
     }
 
     this.player.setVelocity(velocityX, velocityY);
@@ -293,15 +325,11 @@ export default class GameScene extends Phaser.Scene {
     const healthPct = this.playerHealth / this.maxHealth;
     this.healthBar.width = 50 * healthPct;
 
-    // Sync player graphic
-    this.playerGfx.x = this.player.x;
-    this.playerGfx.y = this.player.y;
-    
     // Flash player when invulnerable
     if (this.isInvulnerable) {
-      this.playerGfx.alpha = (time % 200 < 100) ? 0.5 : 1;
+      this.player.alpha = (time % 200 < 100) ? 0.5 : 1;
     } else {
-      this.playerGfx.alpha = 1;
+      this.player.alpha = 1;
     }
 
     // Reset recharge flag
@@ -323,6 +351,18 @@ export default class GameScene extends Phaser.Scene {
       if (dist > 4) {
         enemy.body.velocity.x = (dx / dist) * enemy.speed;
         enemy.body.velocity.y = (dy / dist) * enemy.speed;
+        
+        // Update enemy sprite based on movement direction
+        const absDx = Math.abs(dx);
+        const absDy = Math.abs(dy);
+        
+        if (absDx > absDy) {
+          // Moving more horizontally
+          enemy.setTexture(dx > 0 ? 'enemy-right' : 'enemy-left');
+        } else {
+          // Moving more vertically
+          enemy.setTexture(dy > 0 ? 'enemy-down' : 'enemy-up');
+        }
       } else {
         enemy.body.velocity.x = 0;
         enemy.body.velocity.y = 0;
@@ -382,13 +422,15 @@ export default class GameScene extends Phaser.Scene {
   }
 
   spawnEnemy(x, y) {
-    const enemy = this.physics.add.sprite(x, y, null);
+    const enemy = this.physics.add.sprite(x, y, 'enemy-down');
     enemy.setSize(12, 12);
     enemy.speed = 30 + (this.wave * 2);
     enemy.body.setCollideWorldBounds(true);
 
+    // Visual overlay (optional - you can remove this if sprites are enough)
     enemy.gfx = this.add.rectangle(x, y, 12, 12, 0xff5555);
     enemy.gfx.setDepth(5);
+    enemy.gfx.setAlpha(0); // Make invisible, only using sprite
 
     this.enemies.add(enemy);
   }
@@ -511,7 +553,7 @@ export default class GameScene extends Phaser.Scene {
 
   gameOver() {
     this.isGameOver = true;
-    this.playerGfx.setVisible(false);
+    this.player.setVisible(false);
     this.gameOverText.setVisible(true);
     this.gameOverText.setText(
       `GAME OVER\n\nWave: ${this.wave}\nKills: ${this.enemiesKilled}\nScore: ${this.score}\n\nPress R to Restart`
