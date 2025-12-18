@@ -1073,42 +1073,42 @@ spawnFlyingEnemy() {
   const side = Phaser.Math.Between(0, 3);
   let x, y, vx, vy;
   
-  const speed = 200 + (this.wave * 5);
+  const speed = 250 + (this.wave * 5);
   
   switch(side) {
     case 0: // Top
-      x = Phaser.Math.Between(0, 800);
-      y = -20;
-      vx = Phaser.Math.Between(-50, 50);
+      x = Phaser.Math.Between(50, 750);
+      y = -50;
+      vx = Phaser.Math.Between(-100, 100);
       vy = speed;
       break;
     case 1: // Right
-      x = 820;
-      y = Phaser.Math.Between(0, 600);
+      x = 850;
+      y = Phaser.Math.Between(50, 550);
       vx = -speed;
-      vy = Phaser.Math.Between(-50, 50);
+      vy = Phaser.Math.Between(-100, 100);
       break;
     case 2: // Bottom
-      x = Phaser.Math.Between(0, 800);
-      y = 620;
-      vx = Phaser.Math.Between(-50, 50);
+      x = Phaser.Math.Between(50, 750);
+      y = 650;
+      vx = Phaser.Math.Between(-100, 100);
       vy = -speed;
       break;
     case 3: // Left
-      x = -20;
-      y = Phaser.Math.Between(0, 600);
+      x = -50;
+      y = Phaser.Math.Between(50, 550);
       vx = speed;
-      vy = Phaser.Math.Between(-50, 50);
+      vy = Phaser.Math.Between(-100, 100);
       break;
   }
   
   // Create flying enemy (using coffee sprite as placeholder)
   const flyingEnemy = this.physics.add.sprite(x, y, 'coffee');
-  flyingEnemy.setTint(0xff9500); // Orange tint to differentiate
-  flyingEnemy.setDepth(10);
+  flyingEnemy.setTint(0xff9500);
+  flyingEnemy.setDepth(50); // Changed from 10 to 50 to be above everything
   flyingEnemy.setScale(1.5);
   flyingEnemy.body.setCircle(8);
-  flyingEnemy.body.setCollideWorldBounds(false); // ADD THIS LINE - don't collide with world bounds
+  flyingEnemy.body.setCollideWorldBounds(false);
   flyingEnemy.body.setVelocity(vx, vy);
   
   // Add pulsing effect
