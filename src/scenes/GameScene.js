@@ -867,7 +867,7 @@ createRechargeStation(x, y) {
                             "Now that you have some spare time, you spent it with your loving family.",
                             "Because you don't need to be at work, you can go to the beach.",
                             "Now you can sleep in.",
-                            "After being made redundant, you took the paints from the back of the cupboard and painted a beautiful picture.",
+                            "After being made redundant, you got your old paints from the back of the cupboard and painted a beautiful picture.",
                             "After being made redundant, you sat outside an immersed yourself in the beauty of nature.",
                             "Now that you're no longer a consultant, you've found that you're able to make meaningful human connections.",
                             "Without a job, now you can have 12 beers for lunch.",
@@ -1068,7 +1068,6 @@ startLunchBreak() {
   });
 }
 
-// New function - spawn flying enemy
 spawnFlyingEnemy() {
   // Random side (0 = top, 1 = right, 2 = bottom, 3 = left)
   const side = Phaser.Math.Between(0, 3);
@@ -1104,11 +1103,12 @@ spawnFlyingEnemy() {
   }
   
   // Create flying enemy (using coffee sprite as placeholder)
-  const flyingEnemy = this.physics.add.sprite(x, y, 'slop_salad');
+  const flyingEnemy = this.physics.add.sprite(x, y, 'coffee');
   flyingEnemy.setTint(0xff9500); // Orange tint to differentiate
   flyingEnemy.setDepth(10);
   flyingEnemy.setScale(1.5);
   flyingEnemy.body.setCircle(8);
+  flyingEnemy.body.setCollideWorldBounds(false); // ADD THIS LINE - don't collide with world bounds
   flyingEnemy.body.setVelocity(vx, vy);
   
   // Add pulsing effect
