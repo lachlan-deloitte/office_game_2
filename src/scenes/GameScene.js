@@ -17,7 +17,7 @@ export default class GameScene extends Phaser.Scene {
     this.load.image('enemy-right', 'assets/sprites/enemy-right.png');
 
     // Load corporate slop salad enemy
-    this.load.image('slop_salad', 'assets/sprites/desk-slop_salad.png');
+    this.load.image('slop_salad', 'assets/sprites/slop_salad.png');
     
     // Load desk collision sprite
     this.load.image('desk', 'assets/sprites/desk-collision.png');
@@ -224,7 +224,7 @@ create() {
     this.specialEventActive = false;   // Is the timed event happening?
     this.specialEventDesk = null;      // The replaced desk
     this.specialEventTimer = null;     // Countdown for player
-    this.specialEventDuration = 15000; // 15 seconds to reach desk
+    this.specialEventDuration = 30000; // 30 seconds to reach desk
     this.specialEventMusic = this.sound.add('teamsSFX', { volume: 0.6, loop: true });
     // Arrow pointing to desk where the call is coming from
     this.specialEventArrow = this.add.triangle(
@@ -758,7 +758,7 @@ createRechargeStation(x, y) {
       this.waveText.setText(`${this.wave}`);
       
       // Check if it's time for lunch break (every 10 waves starting at wave 10)
-      if (this.wave >= 10 && this.wave % 10 === 0) {
+      if (this.wave >= 5 && this.wave % 5 === 0) {
         this.startLunchBreak();
         return;
       }
@@ -976,7 +976,7 @@ completeSpecialEvent() {
       // Particle effect
       for (let i = 0; i < 6; i++) {
         const angle = (Math.PI * 2 * i) / 6;
-        const particle = this.add.circle(flyingEnemy.x, flyingEnemy.y, 3, 0xff9500);
+        const particle = this.add.sprite(flyingEnemy.x, flyingEnemy.y, 'slop_salad');
         particle.setDepth(9);
         
         this.tweens.add({
@@ -997,7 +997,6 @@ completeSpecialEvent() {
     }
 }
 
-// New function - flying enemy hits player
 flyingEnemyHitPlayer(player, flyingEnemy) {
     if (this.isInvulnerable) return;
     
