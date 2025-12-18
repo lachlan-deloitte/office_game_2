@@ -15,6 +15,9 @@ export default class GameScene extends Phaser.Scene {
     this.load.image('enemy-down', 'assets/sprites/enemy-down.png');
     this.load.image('enemy-left', 'assets/sprites/enemy-left.png');
     this.load.image('enemy-right', 'assets/sprites/enemy-right.png');
+
+    // Load corporate slop salad enemy
+    this.load.image('slop_salad', 'assets/sprites/desk-slop_salad.png');
     
     // Load desk collision sprite
     this.load.image('desk', 'assets/sprites/desk-collision.png');
@@ -389,6 +392,21 @@ create() {
         padding: { x: 30, y: 20 }
       }
     ).setScrollFactor(0).setDepth(200).setVisible(false).setOrigin(0.5);
+
+    // Lunch break announcement
+    this.lunchBreakText = this.add.text(
+      400,
+      300,
+      'LUNCH BREAK!\n\nDodge the $23 slop salads!!',
+      {
+        fontSize: '32px',
+        fill: '#ff9500',
+        align: 'center',
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 6
+      }
+    ).setScrollFactor(0).setDepth(250).setVisible(false).setOrigin(0.5);
   }
 
   createControlDisplay(x, y, key, label) {
@@ -449,12 +467,10 @@ update(time) {
       newFacingDir = 'down';
   }
 
-  // Handle diagonal movement (prioritize last key pressed)
   if (velocityX !== 0 && velocityY !== 0) {
       this.playerFacingAngle = Math.atan2(velocityY, velocityX);
   }
 
-  // Update player sprite if direction changed
   if (newFacingDir !== this.playerFacingDir) {
       this.playerFacingDir = newFacingDir;
       this.player.setTexture(`player-${newFacingDir}`);
@@ -465,7 +481,7 @@ update(time) {
   // Recharge mechanic
   if (this.recharging && this.rechargeKey.isDown) {
       this.energy = Math.min(this.energy + 0.8, this.maxEnergy);
-      if (!this.rechargeSound.isPlaying) { // prevent spamming
+      if (!this.rechargeSound.isPlaying) {
             this.rechargeSound.play();
         }
   }
@@ -483,7 +499,8 @@ update(time) {
 
     // Update energy UI
     const energyPct = this.energy / this.maxEnergy;
-    this.energyBar.width = 50 * energyPct;
+    this.energyBar.width = 150 * energyPct;
+    this.energyText.setText(`${Math.floor(this.energy)}/${this.maxEnergy}`);
     
     if (energyPct < 0.3) {
       this.energyBar.fillColor = 0xff0000;
@@ -495,7 +512,16 @@ update(time) {
 
     // Update health UI
     const healthPct = this.playerHealth / this.maxHealth;
-    this.healthBar.width = 50 * healthPct;
+    this.healthBar.width = 150 * healthPct;
+    this.healthText.setText(`${Math.floor(this.playerHealth)}/${this.maxHealth}`);
+    
+    if (healthPct < 0.3) {
+      this.healthBar.fillColor = 0xff0000;
+    } else if (healthPct < 0.6) {
+      this.healthBar.fillColor = 0xff6600;
+    } else {
+      this.healthBar.fillColor = 0xff4444;
+    }
 
     // Flash player when invulnerable
     if (this.isInvulnerable) {
@@ -504,7 +530,6 @@ update(time) {
       this.player.alpha = 1;
     }
 
-    // Reset recharge flag
     this.recharging = false;
 
     // Enemy AI
@@ -524,15 +549,12 @@ update(time) {
         enemy.body.velocity.x = (dx / dist) * enemy.speed;
         enemy.body.velocity.y = (dy / dist) * enemy.speed;
         
-        // Update enemy sprite based on movement direction
         const absDx = Math.abs(dx);
         const absDy = Math.abs(dy);
         
         if (absDx > absDy) {
-          // Moving more horizontally
           enemy.setTexture(dx > 0 ? 'enemy-right' : 'enemy-left');
         } else {
-          // Moving more vertically
           enemy.setTexture(dy > 0 ? 'enemy-down' : 'enemy-up');
         }
       } else {
@@ -554,8 +576,7 @@ update(time) {
       }
     }
 
-    // Check if wave is complete (but prevent immediate triggering)
-    if (this.enemies.countActive(true) === 0 && !this.isGameOver && !this.spawningWave) {
+    if (this.enemies.countActive(true) === 0 && !this.isGameOver && !this.spawningWave && !this.lunchBreakActive) {
       this.startNextWave();
     }
 
@@ -565,7 +586,6 @@ update(time) {
         const pct = this.energy / this.maxEnergy;
         station.rechargeBar.width = station.width * pct;
       } else {
-        // Hide bar if not recharging
         station.rechargeBarBg.setVisible(false);
         station.rechargeBar.setVisible(false);
       }
@@ -573,38 +593,51 @@ update(time) {
 
     // Teams call 
     if (this.specialEventActive && this.specialEventDesk) {
+        // Show Q control
+        this.teamsControlBg.setVisible(true);
+        this.teamsControlKey.setVisible(true);
+        this.teamsControlLabel.setVisible(true);
+        
         if (Phaser.Input.Keyboard.JustDown(this.input.keyboard.addKey('Q'))) {
             const px = this.player.x;
             const py = this.player.y;
             const deskBounds = this.specialEventDesk.getBounds();
 
             if (Phaser.Geom.Rectangle.Contains(deskBounds, px, py)) {
-                // Player succeeded
                 this.completeSpecialEvent();
             }
         }
+    } else {
+        // Hide Q control
+        this.teamsControlBg.setVisible(false);
+        this.teamsControlKey.setVisible(false);
+        this.teamsControlLabel.setVisible(false);
     }
+    
     if (this.specialEventActive && this.specialEventDesk) {
-        // Make arrow visible
         this.specialEventArrow.setVisible(true);
 
-        // Position arrow near player
         const px = this.player.x;
         const py = this.player.y;
-        this.specialEventArrow.setPosition(px, py - 30); // 30 pixels above player
+        this.specialEventArrow.setPosition(px, py - 30);
 
-        // Compute angle to desk
-        const dx = this.specialEventDesk.x - px;
-        const dy = this.specialEventDesk.y - py;
         const angle = Phaser.Math.Angle.Between(px, py, this.specialEventDesk.x, this.specialEventDesk.y);
-
-        // Rotate arrow
         this.specialEventArrow.setRotation(angle);
     } else {
-        // Hide arrow if no special event
         this.specialEventArrow.setVisible(false);
     }
 
+    // Flying enemy cleanup (remove when off screen)
+    const flyingEnemies = this.flyingEnemies.getChildren();
+    for (let i = 0; i < flyingEnemies.length; i++) {
+      const fe = flyingEnemies[i];
+      if (!fe.active) continue;
+      
+      // Remove if far off screen
+      if (fe.x < -100 || fe.x > 900 || fe.y < -100 || fe.y > 700) {
+        fe.destroy();
+      }
+    }
 }
 
 createRechargeStation(x, y) {
@@ -695,12 +728,17 @@ createRechargeStation(x, y) {
   }
 
   startNextWave() {
-      if (this.spawningWave) return; // Prevent double-triggering
+      if (this.spawningWave) return;
       
       this.wave++;
-      this.waveText.setText(`Wave: ${this.wave}`);
+      this.waveText.setText(`${this.wave}`);
       
-      // Maybe spawn health pickup
+      // Check if it's time for lunch break (every 10 waves starting at wave 10)
+      if (this.wave >= 10 && this.wave % 10 === 0) {
+        this.startLunchBreak();
+        return;
+      }
+      
       if (Math.random() < 0.4) {
         const x = Phaser.Math.Between(150, 650);
         const y = Phaser.Math.Between(150, 450);
@@ -710,7 +748,6 @@ createRechargeStation(x, y) {
       this.spawningWave = true;
       this.time.delayedCall(1500, () => {
         this.spawnWave();
-        // Schedule special event after wave ends
         this.startSpecialEventTimer();
       });
   }
@@ -800,7 +837,7 @@ createRechargeStation(x, y) {
   gameOver() {
       this.isGameOver = true;
       this.player.setVisible(false);
-      this.gameOverMessage = ["With your free and large payout time you travelled to France and hiked in the Pyrenees, it was lovely.",
+      this.gameOverMessages = ["With your free and large payout time you travelled to France and hiked in the Pyrenees, it was lovely.",
                             "After being made redundant you went back to tafe, took a baking apprenticeship and opened the bakery you dreamed of as a child.",
                             "Now that you have some spare time, you spent it with your loving family.",
                             "Because you don't need to be at work, you can go to the beach.",
@@ -809,19 +846,19 @@ createRechargeStation(x, y) {
                             "After being made redundant, you sat outside an immersed yourself in the beauty of nature.",
                             "Now that you're no longer a consultant, you've found that you're able to make meaningful human connections.",
                             "Without a job, now you can have 12 beers for lunch.",
-                            "Thanks to your payout, you can afford that nice pair of shoes you wanted."]
-      const randomMessage = Phaser.Utils.Array.GetRandom(this.gameOverTexts);
+                            "Thanks to your payout, you can afford that nice pair of shoes you wanted."];
+      const randomMessage = Phaser.Utils.Array.GetRandom(this.gameOverMessages);
       this.gameOverText.setVisible(true);
       this.gameOverText.setText(
           `REDUNDANT
 
-        "${randomMessage}"
+          "${randomMessage}"
 
-        Wave: ${this.wave}
-        Kills: ${this.enemiesKilled}
-        Score: ${this.score}
+          Wave: ${this.wave}
+          Kills: ${this.enemiesKilled}
+          Score: ${this.score}
 
-        Press R to Restart`
+          Press R to Restart`
         );
       
       // Freeze enemies
@@ -833,15 +870,15 @@ createRechargeStation(x, y) {
       }
 
       // Stop special event music if playing
-      if (this.specialBgm && this.specialBgm.isPlaying) {
-          this.specialBgm.stop();
+      if (this.specialEventMusic && this.specialEventMusic.isPlaying) {
+          this.specialEventMusic.stop();
       }
 
       // stop normal background music as well
-      if (this.bgm && this.bgm.isPlaying) {
-          this.bgm.stop();
+      if (this.bgMusic && this.bgMusic.isPlaying) {
+          this.bgMusic.stop();
       }
-  };
+  }
 
   startSpecialEventTimer() {
       if (this.wave < 3 || this.specialEventActive) return;
@@ -906,5 +943,181 @@ completeSpecialEvent() {
     this.specialEventActive = false;
     this.specialEventTimer = null;
   }
+
+
+  bulletHitFlyingEnemy(bullet, flyingEnemy) {
+    if (bullet) bullet.destroy();
+    
+    if (flyingEnemy) {
+      // Particle effect
+      for (let i = 0; i < 6; i++) {
+        const angle = (Math.PI * 2 * i) / 6;
+        const particle = this.add.circle(flyingEnemy.x, flyingEnemy.y, 3, 0xff9500);
+        particle.setDepth(9);
+        
+        this.tweens.add({
+          targets: particle,
+          x: flyingEnemy.x + Math.cos(angle) * 30,
+          y: flyingEnemy.y + Math.sin(angle) * 30,
+          alpha: 0,
+          duration: 400,
+          onComplete: () => particle.destroy()
+        });
+      }
+      
+      flyingEnemy.destroy();
+      
+      this.enemiesKilled++;
+      this.score += 20; // Worth more points
+      this.scoreText.setText(`${this.enemiesKilled}`);
+    }
+}
+
+// New function - flying enemy hits player
+flyingEnemyHitPlayer(player, flyingEnemy) {
+    if (this.isInvulnerable) return;
+    
+    this.playerHealth -= 25; // More damage
+    this.hurtSound.play();
+    
+    // Knockback
+    const angle = Phaser.Math.Angle.Between(flyingEnemy.x, flyingEnemy.y, player.x, player.y);
+    player.setVelocity(
+      Math.cos(angle) * 300,
+      Math.sin(angle) * 300
+    );
+    
+    // Destroy the flying enemy on contact
+    flyingEnemy.destroy();
+    
+    // Invulnerability frames
+    this.isInvulnerable = true;
+    this.time.delayedCall(800, () => {
+      this.isInvulnerable = false;
+    });
+    
+    // Check for death
+    if (this.playerHealth <= 0) {
+      this.gameOver();
+    }
+}
+
+// New function - start lunch break
+startLunchBreak() {
+  this.lunchBreakActive = true;
+  
+  // Show announcement
+  this.lunchBreakText.setVisible(true);
+  this.lunchBreakText.setAlpha(0);
+  
+  this.tweens.add({
+    targets: this.lunchBreakText,
+    alpha: 1,
+    duration: 500,
+    ease: 'Power2'
+  });
+  
+  // Hide announcement after 3 seconds
+  this.time.delayedCall(3000, () => {
+    this.tweens.add({
+      targets: this.lunchBreakText,
+      alpha: 0,
+      duration: 500,
+      onComplete: () => this.lunchBreakText.setVisible(false)
+    });
+  });
+  
+  // Spawn flying enemies over 15 seconds
+  const spawnCount = 20 + (this.wave - 10) * 2; // More enemies as waves progress
+  const spawnDuration = 15000;
+  const spawnInterval = spawnDuration / spawnCount;
+  
+  for (let i = 0; i < spawnCount; i++) {
+    this.time.delayedCall(i * spawnInterval, () => {
+      this.spawnFlyingEnemy();
+    });
+  }
+  
+  // End lunch break after duration
+  this.time.delayedCall(spawnDuration + 5000, () => {
+    this.endLunchBreak();
+  });
+}
+
+// New function - spawn flying enemy
+spawnFlyingEnemy() {
+  // Random side (0 = top, 1 = right, 2 = bottom, 3 = left)
+  const side = Phaser.Math.Between(0, 3);
+  let x, y, vx, vy;
+  
+  const speed = 200 + (this.wave * 5);
+  
+  switch(side) {
+    case 0: // Top
+      x = Phaser.Math.Between(0, 800);
+      y = -20;
+      vx = Phaser.Math.Between(-50, 50);
+      vy = speed;
+      break;
+    case 1: // Right
+      x = 820;
+      y = Phaser.Math.Between(0, 600);
+      vx = -speed;
+      vy = Phaser.Math.Between(-50, 50);
+      break;
+    case 2: // Bottom
+      x = Phaser.Math.Between(0, 800);
+      y = 620;
+      vx = Phaser.Math.Between(-50, 50);
+      vy = -speed;
+      break;
+    case 3: // Left
+      x = -20;
+      y = Phaser.Math.Between(0, 600);
+      vx = speed;
+      vy = Phaser.Math.Between(-50, 50);
+      break;
+  }
+  
+  // Create flying enemy (using coffee sprite as placeholder)
+  const flyingEnemy = this.physics.add.sprite(x, y, 'slop_salad');
+  flyingEnemy.setTint(0xff9500); // Orange tint to differentiate
+  flyingEnemy.setDepth(10);
+  flyingEnemy.setScale(1.5);
+  flyingEnemy.body.setCircle(8);
+  flyingEnemy.body.setVelocity(vx, vy);
+  
+  // Add pulsing effect
+  this.tweens.add({
+    targets: flyingEnemy,
+    scale: 2,
+    duration: 500,
+    yoyo: true,
+    repeat: -1
+  });
+  
+  this.flyingEnemies.add(flyingEnemy);
+}
+
+// New function - end lunch break
+endLunchBreak() {
+  this.lunchBreakActive = false;
+  
+  // Clean up any remaining flying enemies
+  this.flyingEnemies.clear(true, true);
+  
+  // Continue with normal waves
+  if (Math.random() < 0.6) {
+    const x = Phaser.Math.Between(150, 650);
+    const y = Phaser.Math.Between(150, 450);
+    this.spawnHealthPickup(x, y);
+  }
+  
+  this.spawningWave = true;
+  this.time.delayedCall(2000, () => {
+    this.spawnWave();
+    this.startSpecialEventTimer();
+  });
+}
 
 };
