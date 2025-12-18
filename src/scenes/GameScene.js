@@ -190,6 +190,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   createDesk(x, y) {
+    const desk = this.walls.create(x, y, 'desk');
     // Set the physics body size to match the PNG
     desk.setSize(113, 68);         // Width x Height of your desk sprite
     desk.setOffset(-113 / 2, -68 / 2); // Center the physics body on the sprite
