@@ -1108,13 +1108,18 @@ spawnFlyingEnemy() {
   }
   
   // Create flying enemy (using coffee sprite as placeholder)
-  const flyingEnemy = this.physics.add.sprite(x, y, 'coffee');
+  const flyingEnemy = this.physics.add.sprite(x, y, 'slop_salad');
   flyingEnemy.setTint(0xff9500);
-  flyingEnemy.setDepth(50); // Changed from 10 to 50 to be above everything
+  flyingEnemy.setDepth(50);
   flyingEnemy.setScale(1.5);
+  
+  // Add to group FIRST
+  this.flyingEnemies.add(flyingEnemy);
+  
+  // THEN set physics properties
   flyingEnemy.body.setCircle(8);
   flyingEnemy.body.setCollideWorldBounds(false);
-  flyingEnemy.body.setVelocity(vx, vy);
+  flyingEnemy.body.setVelocity(vx, vy); // Set velocity AFTER adding to group
   
   // Add pulsing effect
   this.tweens.add({
@@ -1124,8 +1129,6 @@ spawnFlyingEnemy() {
     yoyo: true,
     repeat: -1
   });
-  
-  this.flyingEnemies.add(flyingEnemy);
 }
 
 // New function - end lunch break
