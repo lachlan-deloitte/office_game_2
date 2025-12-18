@@ -143,6 +143,12 @@ create() {
 
     // Enemies
     this.enemies = this.physics.add.group();
+
+    // Flying enemies (lunch break)
+    this.flyingEnemies = this.physics.add.group();
+    this.lunchBreakActive = false;
+    this.lunchBreakTimer = null;
+
     this.spawnWave();
 
     // Enemy collision
@@ -153,6 +159,15 @@ create() {
       this.player,
       this.enemies,
       this.enemyHitPlayer,
+      null,
+      this
+    );
+
+    // Flying enemy hits player
+    this.physics.add.overlap(
+      this.player,
+      this.flyingEnemies,
+      this.flyingEnemyHitPlayer,
       null,
       this
     );
@@ -172,6 +187,15 @@ create() {
       this.bullets,
       this.enemies,
       this.bulletHitEnemy,
+      null,
+      this
+    );
+
+    // Bullet → Flying Enemy collision
+    this.physics.add.overlap(
+      this.bullets,
+      this.flyingEnemies,
+      this.bulletHitFlyingEnemy,
       null,
       this
     );
