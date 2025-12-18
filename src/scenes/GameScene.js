@@ -22,11 +22,30 @@ export default class GameScene extends Phaser.Scene {
     // Load powerpoint logo for bullets
     this.load.image('bullet', 'assets/sprites/powerpoint.png')
 
-    // load recharge station 
+    // Load recharge station 
     this.load.image('rechargeStation', 'assets/sprites/recharge_station.png');
+
+    // Load the music
+    this.load.audio('bgMusic', 'assets/audio/metallica-ripoff.wav');
+    this.load.audio('shootSFX', 'assets/audio/shoot.wav');
+    this.load.audio('hurtSFX', 'assets/audio/hurt.wav');
+    this.load.audio('rechargeSFX', 'assets/audio/recharge.wav');
   }
 
   create() {
+    // Play background music
+    this.bgMusic = this.sound.add('bgMusic', {
+            volume: 0.5, // 0 = silent, 1 = full volume
+            loop: true   // Loop continuously
+        });
+
+    this.bgMusic.play();
+    
+    // Sound effects
+    this.shootSound = this.sound.add('shootSFX', { volume: 0.7 });
+    this.hurtSound = this.sound.add('hurtSFX', { volume: 0.7 });
+    this.rechargeSound = this.sound.add('rechargeSFX', { volume: 0.7 });
+
     // Set world bounds
     this.physics.world.setBounds(0, 0, 800, 600);
 
@@ -47,7 +66,7 @@ export default class GameScene extends Phaser.Scene {
     const spriteHeight = this.player.height; // 90
 
     // Set physics body to match sprite exactly
-    this.player.body.setSize(spriteWidth, spriteHeight);
+    this.player.body.setSize(spriteWidth, spriteHeight/4);
     this.player.body.setOffset(0, 0);
     this.player.body.setCollideWorldBounds(true);
     this.playerHealth = 100;
@@ -305,6 +324,9 @@ update(time) {
   // Recharge mechanic
   if (this.recharging && this.rechargeKey.isDown) {
       this.energy = Math.min(this.energy + 0.8, this.maxEnergy);
+      if (!this.rechargeSound.isPlaying) { // prevent spamming
+            this.rechargeSound.play();
+        }
   }
 
   // Shooting with cooldown
@@ -531,6 +553,9 @@ fireBullet() {
     Math.sin(this.playerFacingAngle) * speed
   );
 
+  // Play shooting sound
+  this.shootSound.play();
+
   // Destroy after 1 second to prevent memory leaks
   this.time.delayedCall(1000, () => {
     if (bullet && bullet.active) bullet.destroy();
@@ -571,6 +596,7 @@ fireBullet() {
     if (this.isInvulnerable) return;
     
     this.playerHealth -= 15;
+    this.hurtSound.play();
     
     // Knockback
     const angle = Phaser.Math.Angle.Between(enemy.x, enemy.y, player.x, player.y);
