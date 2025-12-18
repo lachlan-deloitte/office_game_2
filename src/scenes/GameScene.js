@@ -947,7 +947,7 @@ createRechargeStation(x, y) {
     }, [], this);
 }
 
-completeSpecialEvent() {
+  completeSpecialEvent() {
     // Stop special music
     if (this.specialEventMusic && this.specialEventMusic.isPlaying) {
         this.specialEventMusic.stop();
@@ -964,10 +964,15 @@ completeSpecialEvent() {
         this.specialEventDesk = null;
     }
 
+    // Cancel the timer if it exists
+    if (this.specialEventTimer) {
+        this.specialEventTimer.remove();
+        this.specialEventTimer = null;
+    }
+
     // Reset flags
     this.specialEventActive = false;
-    this.specialEventTimer = null;
-  }
+}
 
 
   bulletHitFlyingEnemy(bullet, flyingEnemy) {
