@@ -85,10 +85,20 @@ create() {
     this.playerFacingAngle = 0;
     this.playerFacingDir = 'down'; // Track direction for sprite
 
-    // Camera
+    // Camera - centered with letterboxing
     this.cameras.main.startFollow(this.player);
-    this.cameras.main.setZoom(2);
-    this.cameras.main.setBackgroundColor('#1a1a1a');
+    this.cameras.main.setZoom(1);
+    this.cameras.main.setBackgroundColor('#000000');
+    
+    // Center the game view
+    const gameWidth = 800;
+    const gameHeight = 600;
+    this.cameras.main.setViewport(
+      (this.scale.width - gameWidth) / 2,
+      (this.scale.height - gameHeight) / 2,
+      gameWidth,
+      gameHeight
+    );
 
     // Movement input
     this.cursors = this.input.keyboard.createCursorKeys();
@@ -255,48 +265,153 @@ create() {
   }
 
   createUI() {
-    const uiX = 10;
-    const uiY = 10;
+    const gameWidth = 800;
+    const gameHeight = 600;
+    
+    // TOP BAR - Dark background
+    const topBarHeight = 50;
+    this.topBar = this.add.rectangle(400, topBarHeight/2, gameWidth, topBarHeight, 0x1a1a1a, 0.95);
+    this.topBar.setScrollFactor(0);
+    this.topBar.setDepth(100);
+    
+    // TOP BAR DIVIDER
+    this.add.rectangle(400, topBarHeight, gameWidth, 2, 0x444444).setScrollFactor(0).setDepth(101);
 
-    // Energy bar
-    this.energyBarBg = this.add.rectangle(uiX + 26, uiY + 10, 52, 6, 0x222222).setScrollFactor(0).setDepth(100).setOrigin(0, 0.5);
-    this.energyBar = this.add.rectangle(uiX + 26, uiY + 10, 50, 4, 0x00ff88).setScrollFactor(0).setDepth(101).setOrigin(0, 0.5);
-    this.add.text(uiX, uiY + 7, 'Energy:', { fontSize: '8px', fill: '#ffffff' }).setScrollFactor(0).setDepth(100);
-
-    // Health bar
-    this.healthBarBg = this.add.rectangle(uiX + 26, uiY + 20, 52, 6, 0x222222).setScrollFactor(0).setDepth(100).setOrigin(0, 0.5);
-    this.healthBar = this.add.rectangle(uiX + 26, uiY + 20, 50, 4, 0xff0000).setScrollFactor(0).setDepth(101).setOrigin(0, 0.5);
-    this.add.text(uiX, uiY + 17, 'Health:', { fontSize: '8px', fill: '#ffffff' }).setScrollFactor(0).setDepth(100);
-
-    // Score and stats
-    this.scoreText = this.add.text(uiX, uiY + 30, 'Kills: 0', {
-      fontSize: '8px',
-      fill: '#ffff00'
-    }).setScrollFactor(0).setDepth(100);
-
-    this.waveText = this.add.text(uiX, uiY + 40, 'Wave: 1', {
-      fontSize: '8px',
-      fill: '#00ffff'
-    }).setScrollFactor(0).setDepth(100);
-
-    // Instructions
-    this.instructionText = this.add.text(uiX, uiY + 55, 'WASD/Arrows: Move\nSpace: Shoot\nE: Recharge', {
-      fontSize: '7px',
+    const topY = 15;
+    const spacing = 200;
+    
+    // HEALTH SECTION
+    this.add.text(30, topY, '❤ HEALTH', { 
+      fontSize: '14px', 
+      fill: '#ff6b6b',
+      fontStyle: 'bold'
+    }).setScrollFactor(0).setDepth(102);
+    
+    this.healthBarBg = this.add.rectangle(30, topY + 18, 150, 12, 0x3a3a3a)
+      .setScrollFactor(0).setDepth(102).setOrigin(0, 0);
+    this.healthBar = this.add.rectangle(30, topY + 18, 150, 12, 0xff4444)
+      .setScrollFactor(0).setDepth(103).setOrigin(0, 0);
+    this.healthText = this.add.text(105, topY + 20, '100/100', {
+      fontSize: '10px',
       fill: '#ffffff',
-      lineSpacing: 2
-    }).setScrollFactor(0).setDepth(100).setAlpha(0.7);
+      fontStyle: 'bold'
+    }).setScrollFactor(0).setDepth(104).setOrigin(0.5);
 
-    // Game over text (hidden initially)
+    // ENERGY SECTION
+    this.add.text(230, topY, '⚡ ENERGY', { 
+      fontSize: '14px', 
+      fill: '#4ecdc4',
+      fontStyle: 'bold'
+    }).setScrollFactor(0).setDepth(102);
+    
+    this.energyBarBg = this.add.rectangle(230, topY + 18, 150, 12, 0x3a3a3a)
+      .setScrollFactor(0).setDepth(102).setOrigin(0, 0);
+    this.energyBar = this.add.rectangle(230, topY + 18, 150, 12, 0x00ff88)
+      .setScrollFactor(0).setDepth(103).setOrigin(0, 0);
+    this.energyText = this.add.text(305, topY + 20, '100/100', {
+      fontSize: '10px',
+      fill: '#ffffff',
+      fontStyle: 'bold'
+    }).setScrollFactor(0).setDepth(104).setOrigin(0.5);
+
+    // WAVE SECTION
+    this.add.text(430, topY, '🌊 WAVE', { 
+      fontSize: '14px', 
+      fill: '#95e1d3',
+      fontStyle: 'bold'
+    }).setScrollFactor(0).setDepth(102);
+    
+    this.waveText = this.add.text(430, topY + 18, '1', {
+      fontSize: '16px',
+      fill: '#ffffff',
+      fontStyle: 'bold'
+    }).setScrollFactor(0).setDepth(102);
+
+    // SCORE SECTION
+    this.add.text(580, topY, '💀 KILLS', { 
+      fontSize: '14px', 
+      fill: '#f9ca24',
+      fontStyle: 'bold'
+    }).setScrollFactor(0).setDepth(102);
+    
+    this.scoreText = this.add.text(580, topY + 18, '0', {
+      fontSize: '16px',
+      fill: '#ffffff',
+      fontStyle: 'bold'
+    }).setScrollFactor(0).setDepth(102);
+
+    // BOTTOM BAR - Controls
+    const bottomBarHeight = 60;
+    const bottomY = gameHeight - bottomBarHeight/2;
+    
+    this.bottomBar = this.add.rectangle(400, bottomY, gameWidth, bottomBarHeight, 0x1a1a1a, 0.95);
+    this.bottomBar.setScrollFactor(0);
+    this.bottomBar.setDepth(100);
+    
+    // BOTTOM BAR DIVIDER
+    this.add.rectangle(400, gameHeight - bottomBarHeight, gameWidth, 2, 0x444444)
+      .setScrollFactor(0).setDepth(101);
+
+    const controlY = gameHeight - 35;
+    
+    // Movement controls
+    this.createControlDisplay(100, controlY, 'WASD / ↑←↓→', 'Move');
+    
+    // Shoot control
+    this.createControlDisplay(300, controlY, 'SPACE', 'Shoot');
+    
+    // Recharge control
+    this.createControlDisplay(480, controlY, 'E', 'Recharge');
+    
+    // Special event control (initially hidden)
+    this.teamsControlBg = this.add.rectangle(680, controlY, 140, 35, 0xff4444, 0.3)
+      .setScrollFactor(0).setDepth(101).setVisible(false);
+    this.teamsControlKey = this.add.text(680, controlY - 8, 'Q', {
+      fontSize: '14px',
+      fill: '#ff4444',
+      fontStyle: 'bold'
+    }).setScrollFactor(0).setDepth(102).setOrigin(0.5).setVisible(false);
+    this.teamsControlLabel = this.add.text(680, controlY + 8, 'Answer Call!', {
+      fontSize: '11px',
+      fill: '#ffffff'
+    }).setScrollFactor(0).setDepth(102).setOrigin(0.5).setVisible(false);
+
+    // Game over screen
     this.gameOverText = this.add.text(
-      this.cameras.main.width / 4,
-      this.cameras.main.height / 4,
-      'REDUNDANT!\n\nPress R to Restart\n',
+      400,
+      300,
+      '',
       {
-        fontSize: '16px',
-        fill: '#ff0000',
-        align: 'center'
+        fontSize: '20px',
+        fill: '#ff4444',
+        align: 'center',
+        backgroundColor: '#000000',
+        padding: { x: 30, y: 20 }
       }
-    ).setScrollFactor(0).setDepth(200).setVisible(false);
+    ).setScrollFactor(0).setDepth(200).setVisible(false).setOrigin(0.5);
+  }
+
+  createControlDisplay(x, y, key, label) {
+    const bg = this.add.rectangle(x, y, 140, 35, 0x2a2a2a, 0.8);
+    bg.setScrollFactor(0);
+    bg.setDepth(101);
+    
+    const keyText = this.add.text(x, y - 8, key, {
+      fontSize: '14px',
+      fill: '#4ecdc4',
+      fontStyle: 'bold'
+    });
+    keyText.setScrollFactor(0);
+    keyText.setDepth(102);
+    keyText.setOrigin(0.5);
+    
+    const labelText = this.add.text(x, y + 8, label, {
+      fontSize: '11px',
+      fill: '#cccccc'
+    });
+    labelText.setScrollFactor(0);
+    labelText.setDepth(102);
+    labelText.setOrigin(0.5);
   }
 
 update(time) {
