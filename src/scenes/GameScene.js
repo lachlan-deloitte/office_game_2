@@ -18,6 +18,12 @@ export default class GameScene extends Phaser.Scene {
     
     // Load desk collision sprite
     this.load.image('desk', 'assets/sprites/desk-collision.png');
+
+    // Load powerpoint logo for bullets
+    this.load.image('bullet', 'assets/sprites/powerpoint.png')
+
+    // load recharge station 
+    this.load.image('rechargeStation', 'assets/sprites/recharge_station.png');
   }
 
   create() {
@@ -36,8 +42,8 @@ export default class GameScene extends Phaser.Scene {
 
     // Player
     this.player = this.physics.add.sprite(400, 300, 'player-down');
-    this.player.setSize(12, 12);
-    this.player.setOffset(2, 2);
+    this.player.setSize(62, 90);
+    this.player.setOffset(-31, -45);
     this.player.body.setCollideWorldBounds(true);
     this.playerHealth = 100;
     this.maxHealth = 100;
@@ -46,16 +52,6 @@ export default class GameScene extends Phaser.Scene {
     // Player facing direction
     this.playerFacingAngle = 0;
     this.playerFacingDir = 'down'; // Track direction for sprite
-
-    // Draw player placeholder (remove this since we're using sprites now)
-    // this.playerGfx = this.add.rectangle(
-    //   this.player.x,
-    //   this.player.y,
-    //   12,
-    //   12,
-    //   0x4aa3ff
-    // );
-    // this.playerGfx.setDepth(10);
 
     // Camera
     this.cameras.main.startFollow(this.player);
@@ -194,10 +190,10 @@ export default class GameScene extends Phaser.Scene {
   }
 
   createDesk(x, y) {
-    // Create physics body with desk sprite
-    const desk = this.walls.create(x, y, 'desk');
-    desk.setDepth(2);
-    desk.refreshBody();
+    // Set the physics body size to match the PNG
+    desk.setSize(113, 68);         // Width x Height of your desk sprite
+    desk.setOffset(-113 / 2, -68 / 2); // Center the physics body on the sprite
+    desk.refreshBody();             // Important for static bodies
   }
 
   createUI() {
@@ -391,18 +387,24 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
-  createRechargeStation(x, y) {
-    const station = this.rechargeStations.create(x, y, null);
-    station.setSize(16, 16);
-    station.body.setSize(16, 16);
-    
-    station.gfx = this.add.rectangle(x, y, 16, 16, 0x00ff00);
-    station.gfx.setDepth(3);
-    station.gfx.alpha = 0.6;
-    
-    const indicator = this.add.circle(x, y, 4, 0xffffff);
-    indicator.setDepth(4);
-  }
+createRechargeStation(x, y) {
+  // Create a static physics body for the station
+  const station = this.rechargeStations.create(x, y, 'rechargeStation');
+  
+  // Set the body size to match your sprite (optional, e.g., 16x16)
+  // You can adjust to the actual size of your sprite
+  station.setSize(112, 72);
+  station.setOffset(-56, -36); // centers body if origin is 0.5
+  station.refreshBody();
+
+  // Optional: add visual sprite (already added via the physics group)
+  station.setDepth(3);
+
+  // Optional: add indicator for interactivity (like glowing circle)
+  // const indicator = this.add.circle(x, y, 4, 0xffffff);
+  // indicator.setDepth(4);
+}
+
 
   spawnHealthPickup(x, y) {
     const health = this.add.circle(x, y, 6, 0xff00ff);
@@ -423,7 +425,7 @@ export default class GameScene extends Phaser.Scene {
 
   spawnEnemy(x, y) {
     const enemy = this.physics.add.sprite(x, y, 'enemy-down');
-    enemy.setSize(12, 12);
+    enemy.setSize(62, 90);
     enemy.speed = 30 + (this.wave * 2);
     enemy.body.setCollideWorldBounds(true);
 
@@ -476,27 +478,31 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  fireBullet() {
-    const bullet = this.add.circle(this.player.x, this.player.y, 3, 0xffffff);
-    bullet.setDepth(8);
-    
-    this.physics.world.enable(bullet);
-    this.bullets.add(bullet);
+fireBullet() {
+  // Create a bullet sprite
+  const bullet = this.physics.add.sprite(this.player.x, this.player.y, 'bullet');
+  bullet.setDepth(8);
 
-    const speed = 400;
-    bullet.body.setVelocity(
-      Math.cos(this.playerFacingAngle) * speed,
-      Math.sin(this.playerFacingAngle) * speed
-    );
+  // Set size if your sprite is larger than desired hitbox
+  bullet.body.setSize(8, 8); // optional, depends on your sprite
+  bullet.body.setOffset(0, 0);
 
-    bullet.body.setCircle(3);
+  // Add to bullets group
+  this.bullets.add(bullet);
 
-    this.time.delayedCall(1000, () => {
-      if (bullet && bullet.active) {
-        bullet.destroy();
-      }
-    });
-  }
+  // Calculate velocity
+  const speed = 400;
+  bullet.body.setVelocity(
+    Math.cos(this.playerFacingAngle) * speed,
+    Math.sin(this.playerFacingAngle) * speed
+  );
+
+  // Destroy after 1 second to prevent memory leaks
+  this.time.delayedCall(1000, () => {
+    if (bullet && bullet.active) bullet.destroy();
+  });
+}
+
 
   bulletHitEnemy(bullet, enemy) {
     if (bullet) bullet.destroy();
