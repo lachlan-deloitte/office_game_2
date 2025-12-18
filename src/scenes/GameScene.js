@@ -1,3 +1,5 @@
+import MapLoader from "../map/MapLoader.js";
+
 export default class GameScene extends Phaser.Scene {
   constructor() {
     super("GameScene");
@@ -7,12 +9,43 @@ export default class GameScene extends Phaser.Scene {
     this.load.image("player", "assets/sprites/player.png");
     this.load.image("station", "assets/sprites/station.png");
     this.load.image("projectile", "assets/sprites/slide.png");
+
+    this.mapLoader = new MapLoader(this);
+    this.mapLoader.preload();
+    this.load.image("player", "assets/sprites/player.png");
   }
 
   create() {
+    this.mapLoader.build();
+
     // Player
-    this.player = this.physics.add.sprite(400, 300, "player");
+    this.player = this.physics.add.sprite(64, 64, "player");
     this.player.setCollideWorldBounds(true);
+
+    // Collisions
+    this.physics.add.collider(this.player, this.mapLoader.walls);
+    this.physics.add.collider(this.player, this.mapLoader.furniture);
+
+    // Overlaps
+    this.physics.add.overlap(
+      this.player,
+      this.mapLoader.stations,
+      this.onRecharge,
+      null,
+      this
+    );
+
+    this.physics.add.overlap(
+      this.player,
+      this.mapLoader.powerStations,
+      this.onPowerUp,
+      null,
+      this
+    );
+
+    // Camera
+    this.cameras.main.startFollow(this.player);
+    this.cameras.main.setZoom(2);
 
     // Camera
     this.cameras.main.startFollow(this.player);
