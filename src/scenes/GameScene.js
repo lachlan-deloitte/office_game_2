@@ -955,11 +955,10 @@ update(time) {
       this.isGameOver = true;
       this.player.setVisible(false);
       this.gameOverMessages = ["With your free and large payout time you travelled to France and hiked in the Pyrenees, it was lovely.",
-                            "After being made redundant you went back to tafe, took a baking apprenticeship and opened the bakery you dreamed of as a child.",
+                            "After being made redundant you went back to tafe, took a baking apprenticeship and opened a bakery.",
                             "Now that you have some spare time, you spent it with your loving family.",
                             "Because you don't need to be at work, you can go to the beach.",
                             "Now you can sleep in.",
-                            "After being made redundant, you got your old paints from the back of the cupboard and painted a beautiful picture.",
                             "After being made redundant, you sat outside an immersed yourself in the beauty of nature.",
                             "Now that you're no longer a consultant, you've found that you're able to make meaningful human connections.",
                             "Without a job, now you can have 12 beers for lunch.",
