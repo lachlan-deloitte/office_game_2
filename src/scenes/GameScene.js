@@ -290,7 +290,7 @@ create() {
   createMap() {
     // Floor (visual only, no collision)
     this.floor = this.add.rectangle(this.gameWidth/2, this.gameHeight/2, this.gameWidth, this.gameHeight, 0x2a2a2a);
-    this.floor.setDepth(0);
+    this.floor.setDepth(-1);
 
     // Walls group
     this.walls = this.physics.add.staticGroup();
@@ -1309,7 +1309,7 @@ endLunchBreak() {
     
     // Create new floor at depth 0 (behind everything)
     this.floor = this.add.rectangle(this.gameWidth/2, this.gameHeight/2, this.gameWidth, this.gameHeight, 0x2a2a2a);
-    this.floor.setDepth(0);
+    this.floor.setDepth(-1);
     
     // Destroy old border walls (both physics and graphics)
     if (this.borderWalls) {
