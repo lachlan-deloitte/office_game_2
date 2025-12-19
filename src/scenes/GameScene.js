@@ -41,6 +41,7 @@ export default class GameScene extends Phaser.Scene {
     this.load.audio('rechargeSFX', 'assets/audio/recharge.mp3');
     this.load.audio('healthSFX', 'assets/audio/health.mp3');
     this.load.audio('teamsSFX', 'assets/audio/teams_call.mp3');
+    this.load.audio('sadSFX', 'assets/audio/barbie_ripoff.mp3');
 
     // load endgame sprites
     this.load.image('door', 'assets/sprites/door.png');
@@ -80,6 +81,12 @@ create() {
     this.wave = 1;
     this.enemiesKilled = 0;
     this.enemiesPerWave = 3;
+
+    // Initialize groups BEFORE creating map
+    this.rechargeStations = this.physics.add.staticGroup();
+    this.healthPickups = this.physics.add.group();
+    this.enemies = this.physics.add.group();
+    this.flyingEnemies = this.physics.add.group();
 
     // Create simple placeholder map
     this.createMap();
@@ -130,12 +137,8 @@ create() {
     this.physics.add.collider(this.player, this.walls);
 
     // Recharge stations
-    this.rechargeStations = this.physics.add.staticGroup();
     this.createRechargeStation(350, 300);
     this.createRechargeStation(550, 480);
-
-    // Health pickups
-    this.healthPickups = this.physics.add.group();
 
     // Overlaps with recharge stations
     this.physics.add.overlap(
@@ -155,11 +158,7 @@ create() {
       this
     );
 
-    // Enemies
-    this.enemies = this.physics.add.group();
-
     // Flying enemies (lunch break)
-    this.flyingEnemies = this.physics.add.group();
     this.lunchBreakActive = false;
     this.lunchBreakTimer = null;
 
