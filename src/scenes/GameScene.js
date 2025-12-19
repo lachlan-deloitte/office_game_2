@@ -829,7 +829,7 @@ update(time) {
     this.waveText.setText(`${this.wave}`);
 
     // Check for wave 30 - "go home" mode
-    if (this.wave === 2) {
+    if (this.wave === 30) {
       this.startGoHomeMode();
       return; // Stop spawning enemies
     }
