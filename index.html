@@ -5,22 +5,53 @@
   <title>Consulting Simulator</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
-    body {
-      margin: 0;
-      background: #111;
-    }
-    canvas {
-      display: block;
-      margin: 0 auto;
-      image-rendering: pixelated;
-    }
-  </style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: #111; /* nice dark background */
+        font-family: Arial, sans-serif;
+      }
+
+      /* Center everything on the page */
+      .page {
+        min-height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      /* Stack game + controls vertically */
+      .game-wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px; /* space between game and PNG */
+      }
+
+      /* Phaser injects the canvas here */
+      #game-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      /* Controls image */
+      .controls {
+        max-width: 100%;
+        opacity: 0.9;
+      }
+    </style>
 </head>
 <body>
+   <div class="page">
+      <div class="game-wrapper">
+        <div id="game-container"></div>
+
+        <img src="assets/instructions.png" alt="Game Instructions">
+      </div>
+    </div>
   <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
   <script type="module" src="src/main.js"></script>
-  <div id="instructions">
-        <img src="assets/instructions.png" alt="Game Instructions">
-    </div>
 </body>
 </html>
