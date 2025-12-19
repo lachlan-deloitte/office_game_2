@@ -4,11 +4,13 @@ export default class GameScene extends Phaser.Scene {
   }
 
   preload() {
-    // Load player sprites
-    this.load.image('player-up', 'assets/sprites/player-up.png');
-    this.load.image('player-down', 'assets/sprites/player-down.png');
-    this.load.image('player-left', 'assets/sprites/player-left.png');
-    this.load.image('player-right', 'assets/sprites/player-right.png');
+    // Load player sprites - all 4 characters
+    for (let i = 1; i <= 4; i++) {
+        this.load.image(`player${i}-up`, `assets/sprites/player${i}-up.png`);
+        this.load.image(`player${i}-down`, `assets/sprites/player${i}-down.png`);
+        this.load.image(`player${i}-left`, `assets/sprites/player${i}-left.png`);
+        this.load.image(`player${i}-right`, `assets/sprites/player${i}-right.png`);
+    }
     
     // Load enemy sprites
     this.load.image('enemy-up', 'assets/sprites/enemy-up.png');
@@ -92,8 +94,11 @@ create() {
     // Create simple placeholder map
     this.createMap();
 
+    // Pick random character (1-4)
+    this.playerCharacter = Phaser.Math.Between(1, 4);
+
     // Player
-    this.player = this.physics.add.sprite(400, 300, 'player-down');
+    this.player = this.physics.add.sprite(400, 300, `player${this.playerCharacter}-down`);
     // Suppose the PNG is 62x90
     const spriteWidth = this.player.width;   // 62
     const spriteHeight = this.player.height; // 90
@@ -592,7 +597,7 @@ update(time) {
 
   if (newFacingDir !== this.playerFacingDir) {
       this.playerFacingDir = newFacingDir;
-      this.player.setTexture(`player-${newFacingDir}`);
+      this.player.setTexture(`player${this.playerCharacter}-${newFacingDir}`);
   }
 
   this.player.setVelocity(velocityX, velocityY);
