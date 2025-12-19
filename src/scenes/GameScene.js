@@ -81,6 +81,7 @@ create() {
     this.wave = 1;
     this.enemiesKilled = 0;
     this.enemiesPerWave = 3;
+    this.goHomeModeActive = false; 
 
     // Initialize groups BEFORE creating map
     this.rechargeStations = this.physics.add.staticGroup();
@@ -694,7 +695,7 @@ update(time) {
       }
     }
 
-    if (this.enemies.countActive(true) === 0 && !this.isGameOver && !this.spawningWave && !this.lunchBreakActive) {
+    if (this.enemies.countActive(true) === 0 && !this.isGameOver && !this.spawningWave && !this.lunchBreakActive && !this.goHomeModeActive) {
       this.startNextWave();
     }
 
@@ -756,6 +757,7 @@ update(time) {
         fe.destroy();
       }
     }
+    
 }
 
   spawnHealthPickup(x, y) {
@@ -826,8 +828,14 @@ update(time) {
     this.wave++;
     this.waveText.setText(`${this.wave}`);
 
+    // Check for wave 30 - "go home" mode
+    if (this.wave === 2) {
+      this.startGoHomeMode();
+      return; // Stop spawning enemies
+    }
+
     // ESCAPE MODE TRIGGER
-    if (this.wave === 6 && !this.escapeModeActive) {
+    if (this.wave === 20 && !this.escapeModeActive) {
       this.startEscapeMode();
       return; // stop normal wave flow
     }
@@ -1478,5 +1486,49 @@ tryExit(player, door) {
     }
 
 
+startGoHomeMode() {
+  // Stop normal background music
+  if (this.bgMusic && this.bgMusic.isPlaying) {
+    this.bgMusic.stop();
+  }
 
+  // Play sad music
+  this.goHomeMusic = this.sound.add('sadSFX', { volume: 0.4, loop: true });
+  this.goHomeMusic.play();
+
+  // Show message
+  this.goHomeText = this.add.text(
+    400, 300,
+    'You should probably go home',
+    {
+      fontSize: '48px',
+      fill: '#888888',
+      align: 'center',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 6
+    }
+  ).setScrollFactor(0).setDepth(250).setOrigin(0.5);
+
+  // Fade in the message
+  this.goHomeText.setAlpha(0);
+  this.tweens.add({
+    targets: this.goHomeText,
+    alpha: 1,
+    duration: 2000,
+    ease: 'Power2'
+  });
+
+  // Clear all enemies
+  this.enemies.clear(true, true);
+  this.flyingEnemies.clear(true, true);
+
+  // Cancel any active special events
+  if (this.specialEventActive) {
+    this.completeSpecialEvent();
+  }
+
+  // Set flag to prevent spawning
+  this.goHomeModeActive = true;
+}
 };
