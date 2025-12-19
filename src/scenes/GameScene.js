@@ -41,6 +41,10 @@ export default class GameScene extends Phaser.Scene {
     this.load.audio('rechargeSFX', 'assets/audio/recharge.mp3');
     this.load.audio('healthSFX', 'assets/audio/health.mp3');
     this.load.audio('teamsSFX', 'assets/audio/teams_call.mp3');
+
+    // load endgame sprites
+    this.load.image('door', 'assets/sprites/door.png');
+    this.load.image('hour', 'assets/sprites/hour.png');
     
   }
 
@@ -246,6 +250,15 @@ create() {
     );
     this.specialEventArrow.setDepth(200);
     this.specialEventArrow.setVisible(false); // hidden by default
+
+
+    // end game 
+    // Escape mode
+    this.escapeModeActive = false;
+    this.escapeDoor = null;
+    this.hourTokens = this.physics.add.group();
+    this.hoursCollected = 0;
+    this.totalHoursRequired = 8;
 
   }
 
@@ -838,6 +851,12 @@ createRechargeStation(x, y) {
     
     this.wave++;
     this.waveText.setText(`${this.wave}`);
+
+    // ESCAPE MODE TRIGGER
+    if (this.wave === 6 && !this.escapeModeActive) {
+      this.startEscapeMode();
+      return; // stop normal wave flow
+    }
     
     // Expand world after wave 10
     if (this.wave > 10) {
@@ -1326,5 +1345,143 @@ endLunchBreak() {
     const viewportY = (this.scale.height - this.gameHeight) / 2;
     this.cameras.main.setViewport(viewportX, viewportY, this.gameWidth, this.gameHeight);
   }
+
+
+  startEscapeMode() {
+  this.escapeModeActive = true;
+  this.hoursCollected = 0;
+
+  // Spawn door on a random wall
+  this.spawnEscapeDoor();
+
+  // Spawn hour tokens
+  for (let i = 0; i < this.totalHoursRequired; i++) {
+    this.spawnHourToken();
+  }
+
+  // UI
+  this.escapeText = this.add.text(
+    400, 80,
+    'ESCAPE MODE\nCollect 8 billable hours to leave!',
+    {
+      fontSize: '20px',
+      fill: '#ffd166',
+      align: 'center',
+      fontStyle: 'bold'
+    }
+  ).setScrollFactor(0).setDepth(150).setOrigin(0.5);
+
+  // Overlaps
+  this.physics.add.overlap(
+    this.player,
+    this.hourTokens,
+    this.collectHour,
+    null,
+    this
+  );
+
+  this.physics.add.overlap(
+    this.player,
+    this.escapeDoor,
+    this.tryExit,
+    null,
+    this
+  );
+}
+
+spawnEscapeDoor() {
+  const side = Phaser.Math.Between(0, 3);
+  let x, y;
+
+  switch (side) {
+    case 0: // top
+      x = Phaser.Math.Between(100, this.gameWidth - 100);
+      y = 20;
+      break;
+    case 1: // bottom
+      x = Phaser.Math.Between(100, this.gameWidth - 100);
+      y = this.gameHeight - 20;
+      break;
+    case 2: // left
+      x = 20;
+      y = Phaser.Math.Between(100, this.gameHeight - 100);
+      break;
+    case 3: // right
+      x = this.gameWidth - 20;
+      y = Phaser.Math.Between(100, this.gameHeight - 100);
+      break;
+  }
+
+  this.escapeDoor = this.physics.add.staticSprite(x, y, 'door');
+  this.escapeDoor.setDepth(6);
+  this.escapeDoor.locked = true;
+}
+
+spawnHourToken() {
+  let x, y;
+  let attempts = 0;
+
+  do {
+    x = Phaser.Math.Between(80, this.gameWidth - 80);
+    y = Phaser.Math.Between(80, this.gameHeight - 80);
+    attempts++;
+  } while (
+    Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) < 120 &&
+    attempts < 10
+  );
+
+  const hour = this.hourTokens.create(x, y, 'hour');
+  hour.setDepth(5);
+  hour.body.setCircle(8);
+}
+
+collectHour(player, hour) {
+  hour.destroy();
+  this.hoursCollected++;
+
+  // Optional SFX reuse
+  this.healthSound.play();
+
+  if (this.hoursCollected >= this.totalHoursRequired) {
+    this.unlockDoor();
+  }
+}
+
+
+unlockDoor() {
+  if (!this.escapeDoor) return;
+
+  this.escapeDoor.locked = false;
+  this.escapeDoor.setTint(0x00ff88);
+
+  this.escapeText.setText('DOOR UNLOCKED\nGET OUT!');
+}
+
+
+tryExit(player, door) {
+      if (door.locked) return;
+
+      this.winGame();
+    }
+
+
+    winGame() {
+      this.isGameOver = true;
+
+      this.gameOverText.setVisible(true);
+      this.gameOverText.setText(
+        `YOU ESCAPED!
+
+          You're free to return tomorrow.
+
+          Wave: ${this.wave}
+          Kills: ${this.enemiesKilled}
+          Score: ${this.score}
+
+          Press R to Restart`
+      );
+    }
+
+
 
 };
