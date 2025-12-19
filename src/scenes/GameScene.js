@@ -1394,15 +1394,36 @@ spawnEscapeDoor() {
 spawnHourToken() {
   let x, y;
   let attempts = 0;
+  let validPosition = false;
 
   do {
     x = Phaser.Math.Between(80, this.gameWidth - 80);
     y = Phaser.Math.Between(80, this.gameHeight - 80);
     attempts++;
-  } while (
-    Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) < 120 &&
-    attempts < 10
-  );
+    
+    // Check if too close to player
+    if (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) < 120) {
+      continue;
+    }
+    
+    // Check if overlapping with any desk
+    const desks = this.walls.getChildren();
+    validPosition = true;
+    
+    for (let desk of desks) {
+      const deskBounds = desk.getBounds();
+      // Add padding around desk
+      const padding = 30;
+      if (x > deskBounds.x - padding && 
+          x < deskBounds.x + deskBounds.width + padding &&
+          y > deskBounds.y - padding && 
+          y < deskBounds.y + deskBounds.height + padding) {
+        validPosition = false;
+        break;
+      }
+    }
+    
+  } while (!validPosition && attempts < 50);
 
   const hour = this.hourTokens.create(x, y, 'hour');
   hour.setDepth(5);
