@@ -1328,9 +1328,9 @@ endLunchBreak() {
     this.createBorderWalls();
     
     // Update camera viewport (keep centered)
-    const viewportX = (this.scale.width - this.gameWidth) / 2;
-    const viewportY = (this.scale.height - this.gameHeight) / 2;
-    this.cameras.main.setViewport(viewportX, viewportY, this.gameWidth, this.gameHeight);
+    // const viewportX = (this.scale.width - this.gameWidth) / 2;
+    // const viewportY = (this.scale.height - this.gameHeight) / 2;
+    // this.cameras.main.setViewport(viewportX, viewportY, this.gameWidth, this.gameHeight);
   }
 
 
