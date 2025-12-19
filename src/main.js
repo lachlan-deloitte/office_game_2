@@ -2,8 +2,9 @@ import GameScene from "./scenes/GameScene.js";
 
 const config = {
   type: Phaser.AUTO,
-  width: 960,
-  height: 540,
+  width: 1000,
+  height: 600,
+  parent: "game-container",
   backgroundColor: "#2d2d2d",
   pixelArt: true,
   physics: {
