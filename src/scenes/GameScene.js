@@ -759,31 +759,6 @@ update(time) {
     }
 }
 
-createRechargeStation(x, y) {
-  const station = this.rechargeStations.create(x, y, 'rechargeStation');
-
-  const width = station.width;   // e.g., 112
-  const height = station.height; // e.g., 72
-
-  station.body.setSize(width, height);
-  station.body.setOffset(0, 0); // centered
-  station.refreshBody();
-
-  station.setDepth(3);
-
-  // Optional: add indicator for interactivity (like glowing circle)
-  // Create a progress bar above the station (hidden by default)
-  station.rechargeBarBg = this.add.rectangle(x, y - height/2 - 5, width, 4, 0x222222);
-  station.rechargeBarBg.setDepth(4);
-  station.rechargeBarBg.setVisible(false);
-
-  station.rechargeBar = this.add.rectangle(x - width/2, y - height/2 - 5, 0, 4, 0x00ff88);
-  station.rechargeBar.setOrigin(0, 0.5);
-  station.rechargeBar.setDepth(5);
-  station.rechargeBar.setVisible(false);
-}
-
-
   spawnHealthPickup(x, y) {
       const health = this.add.sprite(x, y, 'coffee');
       health.setDepth(4);
