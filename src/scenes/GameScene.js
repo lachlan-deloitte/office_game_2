@@ -41,7 +41,7 @@ export default class GameScene extends Phaser.Scene {
     this.load.audio('rechargeSFX', 'assets/audio/recharge.mp3');
     this.load.audio('healthSFX', 'assets/audio/health.mp3');
     this.load.audio('teamsSFX', 'assets/audio/teams_call.mp3');
-    this.load.audio('sadSFX', 'assets/audio/barbie_ripoff.mp3');
+    this.load.audio('sadSFX', 'assets/audio/barbie_ripoff.wav');
 
     // load endgame sprites
     this.load.image('door', 'assets/sprites/door.png');
